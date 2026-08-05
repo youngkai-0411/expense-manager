@@ -1,0 +1,187 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { useTransactionStore } from '../stores/useTransactionStore'
+import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
+import { useSettingsStore } from '@/features/settings/stores/useSettingsStore'
+import TransactionDialog from '../components/TransactionDialog.vue'
+import Button from '@/components/ui/button/Button.vue'
+import Input from '@/components/ui/input/Input.vue'
+import * as Icons from '@lucide/vue'
+import dayjs from 'dayjs'
+
+const store = useTransactionStore()
+const categoryStore = useCategoryStore()
+const settingsStore = useSettingsStore()
+
+const dialogOpen = ref(false)
+const selectedTransactionId = ref<number | null>(null)
+
+const openCreateDialog = () => {
+  selectedTransactionId.value = null
+  dialogOpen.value = true
+}
+
+const openEditDialog = (id: number) => {
+  selectedTransactionId.value = id
+  dialogOpen.value = true
+}
+
+const confirmArchive = async (id: number) => {
+  if (confirm('Are you sure you want to delete this transaction?')) {
+    await store.archiveTransaction(id)
+  }
+}
+
+// Helpers for UI
+const getCategory = (id: number) => categoryStore.categories.find(c => c.id === id)
+
+const getIconComponent = (iconName?: string | null) => {
+  if (!iconName) return Icons.CircleDollarSign
+  return (Icons as Record<string, any>)[iconName] || Icons.CircleDollarSign
+}
+
+onMounted(async () => {
+  await Promise.all([
+    categoryStore.loadCategories(),
+    store.loadTransactions()
+  ])
+})
+</script>
+
+<template>
+  <div class="p-8 max-w-5xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+      <h1 class="text-3xl font-bold tracking-tight">Transactions</h1>
+      <Button @click="openCreateDialog">
+        <Icons.Plus class="w-4 h-4 mr-2" />
+        New Transaction
+      </Button>
+    </div>
+
+    <!-- Toolbar Filters -->
+    <div class="flex flex-wrap items-center gap-3 bg-card p-3 rounded-lg border shadow-sm">
+      <div class="relative flex-1 min-w-[200px]">
+        <Icons.Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input 
+          v-model="store.searchQuery" 
+          placeholder="Search notes..." 
+          class="pl-9 h-9"
+        />
+      </div>
+      
+      <select 
+        v-model="store.typeFilter"
+        class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="All">All Types</option>
+        <option value="Income">Income</option>
+        <option value="Expense">Expense</option>
+      </select>
+
+      <select 
+        v-model="store.categoryFilter"
+        class="flex h-9 w-40 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="All">All Categories</option>
+        <option v-for="c in categoryStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+      </select>
+      
+      <Button variant="ghost" size="icon" @click="store.sortOrder = store.sortOrder === 'desc' ? 'asc' : 'desc'" class="h-9 w-9" title="Toggle Sort Order">
+        <Icons.ArrowUpDown class="w-4 h-4" />
+      </Button>
+    </div>
+
+    <!-- Timeline Content -->
+    <div class="space-y-8">
+      <div v-if="store.isLoading" class="p-12 text-center text-muted-foreground border rounded-lg bg-card">
+        Loading transactions...
+      </div>
+      
+      <div v-else-if="store.groupedTransactions.length === 0" class="p-16 text-center border rounded-lg bg-card shadow-sm">
+        <div class="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Icons.ReceiptText class="w-6 h-6 text-muted-foreground" />
+        </div>
+        <h3 class="text-lg font-medium">No transactions found</h3>
+        <p class="text-sm text-muted-foreground mt-1 mb-4">
+          Try adjusting your filters or create a new transaction.
+        </p>
+        <Button variant="outline" @click="openCreateDialog">Create Transaction</Button>
+      </div>
+
+      <template v-else>
+        <div v-for="group in store.groupedTransactions" :key="group.date" class="space-y-4">
+          <h3 class="font-semibold text-muted-foreground uppercase tracking-wider text-sm sticky top-0 bg-background py-2">
+            {{ settingsStore.formatDate(group.date) }}
+          </h3>
+          
+          <div class="bg-card rounded-xl border shadow-sm divide-y">
+            <div 
+              v-for="tx in group.transactions" 
+              :key="tx.id"
+              class="p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors group/tx"
+            >
+              <!-- Icon -->
+              <div 
+                class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                :style="{ 
+                  backgroundColor: getCategory(tx.categoryId)?.color ? `${getCategory(tx.categoryId)?.color}20` : '#88888820', 
+                  color: getCategory(tx.categoryId)?.color || '#888888' 
+                }"
+              >
+                <component :is="getIconComponent(getCategory(tx.categoryId)?.icon)" class="w-5 h-5" />
+              </div>
+
+              <!-- Details -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-medium text-foreground truncate">
+                    {{ getCategory(tx.categoryId)?.name || 'Unknown Category' }}
+                  </span>
+                  <span class="text-xs text-muted-foreground">{{ dayjs(tx.transactionDate).format('HH:mm') }}</span>
+                </div>
+                <div class="text-sm text-muted-foreground flex items-center gap-1.5 truncate">
+                  <span v-if="getCategory(tx.categoryId)?.type" class="inline-flex items-center gap-1">
+                    <Icons.Tag class="w-3 h-3" />
+                    {{ getCategory(tx.categoryId)?.type }}
+                  </span>
+                  <template v-if="tx.note">
+                    <span class="mx-1.5 text-muted-foreground/40">•</span>
+                    <span class="truncate">{{ tx.note }}</span>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Amount & Actions -->
+              <div class="flex items-center gap-4 shrink-0">
+                <div 
+                  class="text-right font-semibold whitespace-nowrap"
+                  :class="{
+                    'text-green-600 dark:text-green-400': getCategory(tx.categoryId)?.type === 'Income',
+                    'text-red-600 dark:text-red-400': getCategory(tx.categoryId)?.type === 'Expense'
+                  }"
+                >
+                  {{ getCategory(tx.categoryId)?.type === 'Expense' ? '-' : (getCategory(tx.categoryId)?.type === 'Income' ? '+' : '') }}{{ settingsStore.formatCurrency(tx.amount) }}
+                </div>
+                
+                <div class="flex items-center opacity-0 group-hover/tx:opacity-100 transition-opacity gap-1 w-16 justify-end">
+                  <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground" @click="openEditDialog(tx.id)" title="Edit">
+                    <Icons.Pencil class="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:bg-destructive/10" @click="confirmArchive(tx.id)" title="Delete">
+                    <Icons.Trash2 class="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <TransactionDialog 
+      v-model:open="dialogOpen" 
+      :transaction-id="selectedTransactionId"
+    />
+  </div>
+</template>
