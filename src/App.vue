@@ -41,15 +41,28 @@ onMounted(async () => {
           <Icons.ReceiptText class="w-4 h-4 mr-3" />
           Transactions
         </router-link>
-        <router-link 
-          to="/categories"
-          class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
-          :class="route.path === '/categories' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
-        >
-          <Icons.Tags class="w-4 h-4 mr-3" />
-          Categories
-        </router-link>
-        
+        <div class="pt-4 mt-4 border-t border-border">
+          <div class="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Management
+          </div>
+          <router-link 
+            to="/categories"
+            class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+            :class="route.path === '/categories' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+          >
+            <Icons.Tags class="w-4 h-4 mr-3" />
+            Categories
+          </router-link>
+          
+          <router-link 
+            to="/sources"
+            class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors mt-1"
+            :class="route.path === '/sources' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+          >
+            <Icons.Building2 class="w-4 h-4 mr-3" />
+            Sources
+          </router-link>
+        </div>
         <div class="pt-4 mt-4 border-t border-border">
           <router-link 
             to="/data-management"

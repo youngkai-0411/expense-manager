@@ -57,14 +57,6 @@ onMounted(() => {
           class="pl-9"
         />
       </div>
-      <select 
-        v-model="store.typeFilter"
-        class="flex h-10 w-48 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        <option value="All">All Types</option>
-        <option value="Expense">Expense</option>
-        <option value="Income">Income</option>
-      </select>
     </div>
 
     <!-- Content -->
@@ -88,7 +80,6 @@ onMounted(() => {
         <thead class="text-xs text-muted-foreground uppercase bg-muted/50 border-b">
           <tr>
             <th class="px-4 py-3 font-medium">Category</th>
-            <th class="px-4 py-3 font-medium">Type</th>
             <th class="px-4 py-3 font-medium text-right">Actions</th>
           </tr>
         </thead>
@@ -108,14 +99,6 @@ onMounted(() => {
                 </div>
                 <span class="font-medium">{{ category.name }}</span>
               </div>
-            </td>
-            <td class="px-4 py-3">
-              <span 
-                class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                :class="category.type === 'Income' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'"
-              >
-                {{ category.type }}
-              </span>
             </td>
             <td class="px-4 py-3 text-right">
               <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

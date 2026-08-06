@@ -64,35 +64,30 @@ export function setupSettingsHandlers() {
         // Create demo categories
         const incomeCategory = tx.insert(categories).values({
           name: 'Salary',
-          type: 'Income',
           icon: 'Briefcase',
           color: '#10b981'
         }).returning().get()
         
         const foodCategory = tx.insert(categories).values({
           name: 'Food & Dining',
-          type: 'Expense',
           icon: 'Utensils',
           color: '#ef4444'
         }).returning().get()
         
         const transportCategory = tx.insert(categories).values({
           name: 'Transportation',
-          type: 'Expense',
           icon: 'Car',
           color: '#f59e0b'
         }).returning().get()
         
         const housingCategory = tx.insert(categories).values({
           name: 'Housing',
-          type: 'Expense',
           icon: 'Home',
           color: '#3b82f6'
         }).returning().get()
 
         const entertainmentCategory = tx.insert(categories).values({
           name: 'Entertainment',
-          type: 'Expense',
           icon: 'Film',
           color: '#8b5cf6'
         }).returning().get()
@@ -109,17 +104,19 @@ export function setupSettingsHandlers() {
           if (i % 8 === 0) {
             tx.insert(transactions).values({
               categoryId: incomeCategory.id,
-              amount: 50000000 + Math.floor(Math.random() * 10000000), // Random amount around 50M
+              type: 'Income',
+              amount: Math.floor(Math.random() * 5000) + 3000, // 3000-8000
               transactionDate: randomDate,
-              note: 'Monthly Salary'
+              status: 'Completed'
             }).run()
           } else {
             const randomCategory = txCategories[Math.floor(Math.random() * txCategories.length)]
             tx.insert(transactions).values({
               categoryId: randomCategory.id,
-              amount: 50000 + Math.floor(Math.random() * 1000000), // Random amount up to 1M
+              type: 'Expense',
+              amount: Math.floor(Math.random() * 90) + 10, // 10-100
               transactionDate: randomDate,
-              note: `Demo ${randomCategory.name} Expense`
+              status: Math.random() > 0.9 ? 'Pending' : 'Completed'
             }).run()
           }
         }

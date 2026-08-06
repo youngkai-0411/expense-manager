@@ -2,8 +2,10 @@
 import { onMounted, ref } from 'vue'
 import { useTransactionStore } from '../stores/useTransactionStore'
 import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
+import { useSourceStore } from '@/features/sources/stores/useSourceStore'
 import { useSettingsStore } from '@/features/settings/stores/useSettingsStore'
 import TransactionDialog from '../components/TransactionDialog.vue'
+import TransactionDetailDialog from '../components/TransactionDetailDialog.vue'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
 import * as Icons from '@lucide/vue'
@@ -12,9 +14,11 @@ import { toast } from 'vue-sonner'
 
 const store = useTransactionStore()
 const categoryStore = useCategoryStore()
+const sourceStore = useSourceStore()
 const settingsStore = useSettingsStore()
 
 const dialogOpen = ref(false)
+const detailDialogOpen = ref(false)
 const selectedTransactionId = ref<number | null>(null)
 
 const openCreateDialog = () => {
@@ -25,6 +29,11 @@ const openCreateDialog = () => {
 const openEditDialog = (id: number) => {
   selectedTransactionId.value = id
   dialogOpen.value = true
+}
+
+const openDetailDialog = (id: number) => {
+  selectedTransactionId.value = id
+  detailDialogOpen.value = true
 }
 
 const confirmArchive = async (id: number) => {
@@ -53,6 +62,7 @@ const getIconComponent = (iconName?: string | null) => {
 onMounted(async () => {
   await Promise.all([
     categoryStore.loadCategories(),
+    sourceStore.loadSources(),
     store.loadTransactions()
   ])
 })
@@ -101,15 +111,35 @@ onMounted(async () => {
 
       <select 
         v-model="store.categoryFilter"
-        class="flex h-9 w-40 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <option value="All">All Categories</option>
         <option v-for="c in categoryStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
+
+      <select 
+        v-model="store.sourceFilter"
+        class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="All">All Sources</option>
+        <option v-for="s in sourceStore.sources" :key="s.id" :value="s.id">{{ s.name }}</option>
+      </select>
       
-      <Button variant="ghost" size="icon" @click="store.sortOrder = store.sortOrder === 'desc' ? 'asc' : 'desc'" class="h-9 w-9" title="Toggle Sort Order">
-        <Icons.ArrowUpDown class="w-4 h-4" />
-      </Button>
+      <div class="ml-auto flex items-center gap-2">
+        <select 
+          v-model="store.sortBy"
+          class="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <option value="transactionDate">Date</option>
+          <option value="amount">Amount</option>
+          <option value="category">Category</option>
+          <option value="source">Source</option>
+          <option value="createdAt">Created</option>
+        </select>
+        <Button variant="ghost" size="icon" @click="store.sortDirection = store.sortDirection === 'desc' ? 'asc' : 'desc'" class="h-9 w-9 border" title="Toggle Sort Direction">
+          <Icons.ArrowUpDown class="w-4 h-4" />
+        </Button>
+      </div>
     </div>
 
     <!-- Timeline Content -->
@@ -156,14 +186,22 @@ onMounted(async () => {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1">
                   <span class="font-medium text-foreground truncate">
-                    {{ getCategory(tx.categoryId)?.name || 'Unknown Category' }}
+                    {{ tx.categoryName || 'Unknown Category' }}
                   </span>
                   <span class="text-xs text-muted-foreground">{{ dayjs(tx.transactionDate).format('HH:mm') }}</span>
                 </div>
                 <div class="text-sm text-muted-foreground flex items-center gap-1.5 truncate">
-                  <span v-if="getCategory(tx.categoryId)?.type" class="inline-flex items-center gap-1">
-                    <Icons.Tag class="w-3 h-3" />
-                    {{ getCategory(tx.categoryId)?.type }}
+                  <span v-if="tx.type" class="inline-flex items-center gap-1">
+                    <span 
+                      class="w-2 h-2 rounded-full"
+                      :class="tx.type === 'Income' ? 'bg-green-500' : 'bg-red-500'"
+                    ></span>
+                    {{ tx.type }}
+                  </span>
+                  <span class="mx-1.5 text-muted-foreground/40">•</span>
+                  <span class="flex items-center gap-1">
+                    <Icons.Building2 class="w-3 h-3 opacity-70" />
+                    {{ tx.sourceName || 'Unknown' }}
                   </span>
                   <template v-if="tx.note">
                     <span class="mx-1.5 text-muted-foreground/40">•</span>
@@ -185,17 +223,20 @@ onMounted(async () => {
 
               <!-- Amount & Actions -->
               <div class="flex items-center gap-4 shrink-0">
-                <div 
-                  class="text-right font-semibold whitespace-nowrap"
+                <span 
+                  class="font-medium whitespace-nowrap"
                   :class="{
-                    'text-green-600 dark:text-green-400': getCategory(tx.categoryId)?.type === 'Income',
-                    'text-red-600 dark:text-red-400': getCategory(tx.categoryId)?.type === 'Expense'
+                    'text-green-600 dark:text-green-400': tx.type === 'Income',
+                    'text-red-600 dark:text-red-400': tx.type === 'Expense'
                   }"
                 >
-                  {{ getCategory(tx.categoryId)?.type === 'Expense' ? '-' : (getCategory(tx.categoryId)?.type === 'Income' ? '+' : '') }}{{ settingsStore.formatCurrency(tx.amount) }}
-                </div>
+                  {{ tx.type === 'Expense' ? '-' : (tx.type === 'Income' ? '+' : '') }}{{ settingsStore.formatCurrency(tx.amount) }}
+                </span>
                 
                 <div class="flex items-center opacity-0 group-hover/tx:opacity-100 transition-opacity gap-1 min-w-[5rem] justify-end">
+                  <Button variant="ghost" size="icon" class="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-100/50" @click="openDetailDialog(tx.id)" title="View Details">
+                    <Icons.Eye class="w-4 h-4" />
+                  </Button>
                   <Button v-if="tx.status === 'Pending'" variant="ghost" size="icon" class="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-100/50" @click="markAsCompleted(tx.id)" title="Mark as Completed">
                     <Icons.CheckCircle class="w-4 h-4" />
                   </Button>
@@ -215,6 +256,11 @@ onMounted(async () => {
 
     <TransactionDialog 
       v-model:open="dialogOpen" 
+      :transaction-id="selectedTransactionId"
+    />
+    
+    <TransactionDetailDialog 
+      v-model:open="detailDialogOpen" 
       :transaction-id="selectedTransactionId"
     />
   </div>

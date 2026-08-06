@@ -11,17 +11,12 @@ export const useCategoryStore = defineStore('category', () => {
 
   // Filters
   const searchQuery = ref('')
-  const typeFilter = ref<'All' | 'Income' | 'Expense'>('All')
 
   // Computed
   const activeCategories = computed(() => categories.value.filter(c => !c.isArchived))
   
   const filteredCategories = computed(() => {
     let result = activeCategories.value
-
-    if (typeFilter.value !== 'All') {
-      result = result.filter(c => c.type === typeFilter.value)
-    }
 
     if (searchQuery.value) {
       const lowerQuery = searchQuery.value.toLowerCase()
@@ -46,12 +41,12 @@ export const useCategoryStore = defineStore('category', () => {
   }
 
   const createCategory = async (payload: CreateCategoryPayload) => {
-    // Unique name validation within the same type
-    const exists = activeCategories.value.find(
-      c => c.type === payload.type && c.name.toLowerCase() === payload.name.toLowerCase()
+    // Unique name validation
+    const duplicate = categories.value.find(
+      c => c.name.toLowerCase() === payload.name.toLowerCase()
     )
-    if (exists) {
-      throw new Error(`Category "${payload.name}" already exists in ${payload.type}.`)
+    if (duplicate) {
+      throw new Error(`Category "${payload.name}" already exists.`)
     }
 
     try {
@@ -67,13 +62,13 @@ export const useCategoryStore = defineStore('category', () => {
   }
 
   const updateCategory = async (payload: UpdateCategoryPayload) => {
-    // Unique name validation within the same type (excluding self)
-    if (payload.name && payload.type) {
-      const exists = activeCategories.value.find(
-        c => c.id !== payload.id && c.type === payload.type && c.name.toLowerCase() === payload.name!.toLowerCase()
+    // Unique name validation (excluding self)
+    if (payload.name) {
+      const duplicate = categories.value.find(
+        c => c.id !== payload.id && c.name.toLowerCase() === payload.name!.toLowerCase()
       )
-      if (exists) {
-        throw new Error(`Category "${payload.name}" already exists in ${payload.type}.`)
+      if (duplicate) {
+        throw new Error(`Category "${payload.name}" already exists.`)
       }
     }
 
@@ -113,7 +108,6 @@ export const useCategoryStore = defineStore('category', () => {
     isLoading,
     error,
     searchQuery,
-    typeFilter,
     filteredCategories,
     loadCategories,
     createCategory,

@@ -1,10 +1,8 @@
 import { z } from 'zod'
 
-export const categorySchema = z.object({
+export const sourceSchema = z.object({
   name: z.string().min(1, 'Name is required').max(50, 'Name is too long'),
   description: z.string().max(255, 'Description is too long').optional(),
-  icon: z.string().optional(),
-  color: z.string().optional(),
 })
 
-export type CategoryFormValues = z.infer<typeof categorySchema>
+export type SourceFormValues = z.infer<typeof sourceSchema>

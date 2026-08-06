@@ -1,16 +1,32 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { dashboardApi } from '../ipc'
-import { transactionApi } from '@/features/transactions/ipc'
-import type { DashboardSummary, DashboardExpenseByCategory, DashboardTrend, DashboardRecentTransaction } from '../types'
+import type { 
+  DashboardSummary, 
+  CategoryReportItem,
+  SourceReportItem,
+  DashboardTrend, 
+  DashboardRecentTransaction,
+  DashboardFilter
+} from '../types'
 import dayjs from 'dayjs'
 import { toast } from 'vue-sonner'
 
 export const useDashboardStore = defineStore('dashboard', () => {
   const summary = ref<DashboardSummary | null>(null)
-  const expenseByCategory = ref<DashboardExpenseByCategory[]>([])
+  const categoryReport = ref<CategoryReportItem[]>([])
+  const sourceReport = ref<SourceReportItem[]>([])
   const trend = ref<DashboardTrend[]>([])
   const recentTransactions = ref<DashboardRecentTransaction[]>([])
+  
+  const filters = reactive<DashboardFilter>({
+    startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+    endDate: dayjs().endOf('month').format('YYYY-MM-DD'),
+    categoryId: 'All',
+    sourceId: 'All',
+    type: 'All',
+    status: 'All'
+  })
   
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -20,22 +36,17 @@ export const useDashboardStore = defineStore('dashboard', () => {
       isLoading.value = true
       error.value = null
       
-      const currentMonth = dayjs().format('YYYY-MM')
-      
-      const [sum, exp, trd, rct, pending] = await Promise.all([
-        dashboardApi.getSummary(currentMonth),
-        dashboardApi.getExpenseByCategory(currentMonth),
-        dashboardApi.getIncomeExpenseTrend(),
-        dashboardApi.getRecentTransactions(),
-        transactionApi.getPendingSummary()
+      const [sum, catRep, srcRep, trd, rct] = await Promise.all([
+        dashboardApi.getSummary(filters),
+        dashboardApi.getCategoryReport(filters),
+        dashboardApi.getSourceReport(filters),
+        dashboardApi.getIncomeExpenseTrend(filters),
+        dashboardApi.getRecentTransactions(filters)
       ])
 
-      summary.value = {
-        ...sum,
-        pendingIncome: pending.pendingIncome,
-        pendingExpense: pending.pendingExpense
-      }
-      expenseByCategory.value = exp
+      summary.value = sum
+      categoryReport.value = catRep
+      sourceReport.value = srcRep
       trend.value = trd
       recentTransactions.value = rct
     } catch (e: any) {
@@ -52,8 +63,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   return {
+    filters,
     summary,
-    expenseByCategory,
+    categoryReport,
+    sourceReport,
     trend,
     recentTransactions,
     isLoading,

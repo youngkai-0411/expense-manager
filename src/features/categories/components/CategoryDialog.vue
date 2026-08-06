@@ -33,14 +33,14 @@ const { handleSubmit, resetForm, errors, isSubmitting } = useForm({
   validationSchema: toTypedSchema(categorySchema),
   initialValues: {
     name: '',
-    type: 'Expense',
+    description: '',
     icon: 'Tag',
     color: '#4f46e5'
   }
 })
 
 const { value: name } = useField<string>('name')
-const { value: type } = useField<'Income' | 'Expense'>('type')
+const { value: description } = useField<string>('description')
 const { value: icon } = useField<string>('icon')
 
 // Populate form when editing
@@ -50,7 +50,7 @@ watch(() => props.open, (isOpen) => {
       resetForm({
         values: {
           name: activeCategory.value.name,
-          type: activeCategory.value.type,
+          description: activeCategory.value.description || '',
           icon: activeCategory.value.icon || 'Tag',
           color: activeCategory.value.color || '#4f46e5'
         }
@@ -101,16 +101,9 @@ const onSubmit = handleSubmit(async (values) => {
         </div>
 
         <div class="space-y-2">
-          <Label>Type</Label>
-          <select 
-            v-model="type"
-            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            :disabled="isEditing"
-          >
-            <option value="Expense">Expense</option>
-            <option value="Income">Income</option>
-          </select>
-          <p v-if="errors.type" class="text-xs text-destructive">{{ errors.type }}</p>
+          <Label for="description">Description</Label>
+          <Input id="description" v-model="description" placeholder="Optional description..." />
+          <p v-if="errors.description" class="text-xs text-destructive">{{ errors.description }}</p>
         </div>
 
         <div class="space-y-2 relative">

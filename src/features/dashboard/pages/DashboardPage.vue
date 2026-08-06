@@ -1,363 +1,395 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDashboardStore } from '../stores/useDashboardStore'
+import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
+import { useSourceStore } from '@/features/sources/stores/useSourceStore'
 import { useSettingsStore } from '@/features/settings/stores/useSettingsStore'
 import * as Icons from '@lucide/vue'
 import dayjs from 'dayjs'
 import Button from '@/components/ui/button/Button.vue'
+import Input from '@/components/ui/input/Input.vue'
 import TransactionDialog from '@/features/transactions/components/TransactionDialog.vue'
+import CategoryDetailDialog from '../components/CategoryDetailDialog.vue'
+import SourceDetailDialog from '../components/SourceDetailDialog.vue'
 import { Doughnut, Bar } from 'vue-chartjs'
 import { 
-  Chart as ChartJS, 
-  ArcElement, 
-  Tooltip, 
-  Legend, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title 
+  Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title 
 } from 'chart.js'
+import type { CategoryReportItem, SourceReportItem } from '../types'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
 
 const store = useDashboardStore()
+const categoryStore = useCategoryStore()
+const sourceStore = useSourceStore()
 const settingsStore = useSettingsStore()
 const router = useRouter()
 
-const dialogOpen = ref(false)
+const txDialogOpen = ref(false)
+const categoryDetailOpen = ref(false)
+const sourceDetailOpen = ref(false)
+const selectedCategory = ref<CategoryReportItem | null>(null)
+const selectedSource = ref<SourceReportItem | null>(null)
 
 const openCreateTransaction = () => {
-  dialogOpen.value = true
+  txDialogOpen.value = true
+}
+
+const openCategoryDetail = (item: CategoryReportItem) => {
+  selectedCategory.value = item
+  categoryDetailOpen.value = true
+}
+
+const openSourceDetail = (item: SourceReportItem) => {
+  selectedSource.value = item
+  sourceDetailOpen.value = true
 }
 
 onMounted(async () => {
-  await store.loadDashboard()
+  await Promise.all([
+    categoryStore.loadCategories(),
+    sourceStore.loadSources(),
+    store.loadDashboard()
+  ])
 })
 
-const getIconComponent = (iconName?: string | null) => {
-  if (!iconName) return Icons.CircleDollarSign
-  return (Icons as Record<string, any>)[iconName] || Icons.CircleDollarSign
-}
+let filterTimeout: any
+watch(() => store.filters, () => {
+  clearTimeout(filterTimeout)
+  filterTimeout = setTimeout(() => {
+    store.refresh()
+  }, 300)
+}, { deep: true })
 
-// Chart Data Computed Properties
-const expensePieData = computed(() => {
-  const categories = store.expenseByCategory
+// Derived Quick Insights
+const quickInsights = computed(() => {
+  const topExpCat = store.categoryReport.filter(c => c.expense > 0).sort((a, b) => b.expense - a.expense)[0]
+  const topSrc = store.sourceReport.sort((a, b) => b.transactionCount - a.transactionCount)[0]
+  
   return {
-    labels: categories.map(c => c.name),
-    datasets: [
-      {
-        backgroundColor: categories.map(c => c.color),
-        data: categories.map(c => c.totalAmount),
-      }
-    ]
+    topExpenseCategory: topExpCat ? topExpCat.name : '-',
+    topSource: topSrc ? topSrc.name : '-',
+    currentBalance: store.summary?.netBalance || 0
   }
 })
 
-const expensePieOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'right' as const,
-      labels: {
-        usePointStyle: true,
-        padding: 20
-      }
-    }
-  },
-  cutout: '70%',
-}
+// Charts data
+const expensePieData = computed(() => {
+  const categories = store.categoryReport.filter(c => c.expense > 0)
+  return {
+    labels: categories.map(c => c.name),
+    datasets: [{
+      backgroundColor: categories.map(c => c.color),
+      data: categories.map(c => c.expense),
+    }]
+  }
+})
+
+const incomePieData = computed(() => {
+  const categories = store.categoryReport.filter(c => c.income > 0)
+  return {
+    labels: categories.map(c => c.name),
+    datasets: [{
+      backgroundColor: categories.map(c => c.color),
+      data: categories.map(c => c.income),
+    }]
+  }
+})
+
+const topSourcesBarData = computed(() => {
+  const sources = store.sourceReport.slice(0, 5)
+  return {
+    labels: sources.map(s => s.name),
+    datasets: [{
+      label: 'Balance',
+      backgroundColor: '#3b82f6',
+      data: sources.map(s => s.balance),
+    }]
+  }
+})
 
 const trendBarData = computed(() => {
   return {
     labels: store.trend.map(t => dayjs(t.month).format('MMM YY')),
     datasets: [
-      {
-        label: 'Income',
-        backgroundColor: '#10b981', // Tailwind green-500
-        data: store.trend.map(t => t.income)
-      },
-      {
-        label: 'Expense',
-        backgroundColor: '#ef4444', // Tailwind red-500
-        data: store.trend.map(t => t.expense)
-      }
+      { label: 'Income', backgroundColor: '#10b981', data: store.trend.map(t => t.income) },
+      { label: 'Expense', backgroundColor: '#ef4444', data: store.trend.map(t => t.expense) }
     ]
   }
 })
 
-const trendBarOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'top' as const,
-    }
-  },
-  scales: {
-    x: {
-      grid: { display: false }
-    },
-    y: {
-      border: { display: false },
-      ticks: {
-        callback: (value: any) => {
-          if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M'
-          if (value >= 1000) return (value / 1000).toFixed(0) + 'k'
-          return value
-        }
-      }
-    }
-  }
-}
+const pieOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' as const, labels: { usePointStyle: true, padding: 20 } } }, cutout: '70%' }
+const barOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' as const } }, scales: { x: { grid: { display: false } }, y: { border: { display: false } } } }
+
+// Sorting Report Tables
+const catSort = ref<'expense' | 'income' | 'balance'>('expense')
+const srcSort = ref<'balance' | 'count'>('balance')
+
+const sortedCategoryReport = computed(() => {
+  return [...store.categoryReport].sort((a, b) => b[catSort.value] - a[catSort.value])
+})
+
+const sortedSourceReport = computed(() => {
+  if (srcSort.value === 'count') return [...store.sourceReport].sort((a, b) => b.transactionCount - a.transactionCount)
+  return [...store.sourceReport].sort((a, b) => b.balance - a.balance)
+})
 </script>
 
 <template>
-  <div class="p-8 max-w-6xl mx-auto space-y-8">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p class="text-muted-foreground">{{ dayjs().format('MMMM YYYY') }}</p>
-      </div>
-      
-      <div class="flex items-center gap-2">
-        <Button variant="outline" size="sm" @click="store.refresh" :disabled="store.isLoading">
-          <Icons.RefreshCcw class="w-4 h-4 mr-2" :class="{ 'animate-spin': store.isLoading }" />
-          Refresh
+  <div class="p-8 max-w-[1400px] mx-auto space-y-8">
+    <!-- Header & Global Filters -->
+    <div class="flex flex-col gap-4 sticky top-0 bg-background/95 backdrop-blur z-10 py-4 border-b">
+      <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold tracking-tight">Dashboard & Reports</h1>
+        <Button @click="openCreateTransaction">
+          <Icons.Plus class="w-4 h-4 mr-2" />
+          New Transaction
         </Button>
       </div>
-    </div>
 
-    <!-- Quick Actions -->
-    <div class="flex gap-3">
-      <Button @click="openCreateTransaction" class="bg-primary hover:bg-primary/90 text-primary-foreground">
-        <Icons.PlusCircle class="w-4 h-4 mr-2" /> New Transaction
-      </Button>
-      <Button @click="router.push('/transactions')" variant="secondary">
-        <Icons.List class="w-4 h-4 mr-2" /> View Transactions
-      </Button>
-    </div>
-
-    <div v-if="store.isLoading && !store.summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-pulse">
-      <div v-for="i in 6" :key="i" class="h-28 bg-muted rounded-xl"></div>
-    </div>
-
-    <div v-else-if="store.summary" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
-      <!-- Summary Cards -->
-      <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between items-center text-muted-foreground mb-3">
-          <span class="font-medium text-sm">Income This Month</span>
-          <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-            <Icons.TrendingUp class="w-4 h-4 text-green-600 dark:text-green-500" />
-          </div>
+      <div class="flex flex-wrap items-center gap-3 bg-card p-3 rounded-lg border shadow-sm">
+        <div class="flex items-center gap-2">
+          <Input type="date" v-model="store.filters.startDate" class="h-9 w-36" title="Start Date" />
+          <span class="text-muted-foreground">-</span>
+          <Input type="date" v-model="store.filters.endDate" class="h-9 w-36" title="End Date" />
         </div>
-        <div class="text-2xl font-bold text-foreground">
-          {{ settingsStore.formatCurrency(store.summary.totalIncome) }}
+        
+        <select v-model="store.filters.categoryId" class="h-9 w-36 rounded-md border border-input bg-background px-3 py-1 text-sm">
+          <option value="All">All Categories</option>
+          <option v-for="c in categoryStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
+
+        <select v-model="store.filters.sourceId" class="h-9 w-36 rounded-md border border-input bg-background px-3 py-1 text-sm">
+          <option value="All">All Sources</option>
+          <option v-for="s in sourceStore.sources" :key="s.id" :value="s.id">{{ s.name }}</option>
+        </select>
+
+        <select v-model="store.filters.type" class="h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm">
+          <option value="All">All Types</option>
+          <option value="Income">Income</option>
+          <option value="Expense">Expense</option>
+        </select>
+
+        <select v-model="store.filters.status" class="h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm">
+          <option value="All">All Status</option>
+          <option value="Completed">Completed</option>
+          <option value="Pending">Pending</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+        
+        <div v-if="store.isLoading" class="ml-auto text-sm text-muted-foreground flex items-center gap-2">
+          <Icons.Loader2 class="w-4 h-4 animate-spin" />
+          Updating...
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+        <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <h3 class="tracking-tight text-sm font-medium">Total Income</h3>
+          <Icons.ArrowDownLeft class="h-4 w-4 text-green-500" />
+        </div>
+        <div class="text-2xl font-bold text-green-600">{{ settingsStore.formatCurrency(store.summary?.totalIncome || 0) }}</div>
+      </div>
+
+      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+        <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <h3 class="tracking-tight text-sm font-medium">Total Expense</h3>
+          <Icons.ArrowUpRight class="h-4 w-4 text-red-500" />
+        </div>
+        <div class="text-2xl font-bold text-red-600">{{ settingsStore.formatCurrency(store.summary?.totalExpense || 0) }}</div>
+      </div>
+
+      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+        <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <h3 class="tracking-tight text-sm font-medium">Net Balance</h3>
+          <Icons.Wallet class="h-4 w-4 text-blue-500" />
+        </div>
+        <div class="text-2xl font-bold" :class="(store.summary?.netBalance || 0) >= 0 ? 'text-blue-600' : 'text-red-600'">
+          {{ settingsStore.formatCurrency(store.summary?.netBalance || 0) }}
+        </div>
+      </div>
+
+      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6 opacity-80">
+        <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <h3 class="tracking-tight text-sm font-medium">Pending In</h3>
+          <Icons.Clock class="h-4 w-4 text-amber-500" />
+        </div>
+        <div class="text-xl font-bold text-amber-600">{{ settingsStore.formatCurrency(store.summary?.pendingIncome || 0) }}</div>
+      </div>
+
+      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6 opacity-80">
+        <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <h3 class="tracking-tight text-sm font-medium">Pending Out</h3>
+          <Icons.Clock class="h-4 w-4 text-amber-500" />
+        </div>
+        <div class="text-xl font-bold text-amber-600">{{ settingsStore.formatCurrency(store.summary?.pendingExpense || 0) }}</div>
+      </div>
+
+      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+        <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <h3 class="tracking-tight text-sm font-medium">Transactions</h3>
+          <Icons.Activity class="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div class="text-2xl font-bold">{{ store.summary?.totalTransactions || 0 }}</div>
+      </div>
+    </div>
+    
+    <!-- Quick Insights -->
+    <div class="bg-primary/5 rounded-xl border p-4 flex flex-wrap gap-6 items-center">
+      <div class="flex items-center gap-2">
+        <Icons.Flame class="w-5 h-5 text-red-500" />
+        <span class="text-sm font-medium">Top Expense Category:</span>
+        <span class="text-sm text-muted-foreground">{{ quickInsights.topExpenseCategory }}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <Icons.Building2 class="w-5 h-5 text-blue-500" />
+        <span class="text-sm font-medium">Top Source:</span>
+        <span class="text-sm text-muted-foreground">{{ quickInsights.topSource }}</span>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div class="rounded-xl border bg-card shadow-sm p-4 col-span-2">
+        <h3 class="font-semibold mb-4">Monthly Income vs Expense</h3>
+        <div class="h-[250px]">
+          <Bar v-if="store.trend.length" :data="trendBarData" :options="barOptions" />
+          <div v-else class="h-full flex items-center justify-center text-muted-foreground">No data available</div>
         </div>
       </div>
       
-      <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between items-center text-muted-foreground mb-3">
-          <span class="font-medium text-sm">Expense This Month</span>
-          <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-            <Icons.TrendingDown class="w-4 h-4 text-red-600 dark:text-red-500" />
-          </div>
-        </div>
-        <div class="text-2xl font-bold text-foreground">
-          {{ settingsStore.formatCurrency(store.summary.totalExpense) }}
+      <div class="rounded-xl border bg-card shadow-sm p-4">
+        <h3 class="font-semibold mb-4">Top Sources by Balance</h3>
+        <div class="h-[250px]">
+          <Bar v-if="store.sourceReport.length" :data="topSourcesBarData" :options="barOptions" />
+          <div v-else class="h-full flex items-center justify-center text-muted-foreground">No data available</div>
         </div>
       </div>
       
-      <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between items-center text-muted-foreground mb-3">
-          <span class="font-medium text-sm">Net Balance</span>
-          <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <Icons.Scale class="w-4 h-4 text-primary" />
-          </div>
-        </div>
-        <div class="text-2xl font-bold" :class="store.summary.netBalance >= 0 ? 'text-green-600' : 'text-red-600'">
-          {{ store.summary.netBalance >= 0 ? '+' : '' }}{{ settingsStore.formatCurrency(store.summary.netBalance) }}
+      <div class="rounded-xl border bg-card shadow-sm p-4">
+        <h3 class="font-semibold mb-4">Expense by Category</h3>
+        <div class="h-[250px]">
+          <Doughnut v-if="expensePieData.datasets[0].data.length" :data="expensePieData" :options="pieOptions" />
+          <div v-else class="h-full flex items-center justify-center text-muted-foreground">No data available</div>
         </div>
       </div>
 
-      <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between items-center text-muted-foreground mb-3">
-          <span class="font-medium text-sm">Transactions</span>
-          <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-            <Icons.ReceiptText class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-          </div>
-        </div>
-        <div class="text-2xl font-bold text-foreground">
-          {{ store.summary.totalTransactions }}
+      <div class="rounded-xl border bg-card shadow-sm p-4">
+        <h3 class="font-semibold mb-4">Income by Category</h3>
+        <div class="h-[250px]">
+          <Doughnut v-if="incomePieData.datasets[0].data.length" :data="incomePieData" :options="pieOptions" />
+          <div v-else class="h-full flex items-center justify-center text-muted-foreground">No data available</div>
         </div>
       </div>
-
-      <!-- Pending Summary Cards -->
-      <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between items-center text-muted-foreground mb-3">
-          <span class="font-medium text-sm">Pending Income</span>
-          <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-            <Icons.Clock class="w-4 h-4 text-amber-600 dark:text-amber-500" />
+      
+      <!-- Recent Transactions Mini -->
+      <div class="rounded-xl border bg-card shadow-sm p-4 flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold">Recent Transactions</h3>
+          <Button variant="ghost" size="sm" @click="router.push('/transactions')">View All</Button>
+        </div>
+        <div class="flex-1 overflow-y-auto space-y-2 pr-2">
+          <div v-for="tx in store.recentTransactions.slice(0, 5)" :key="tx.id" class="flex items-center justify-between text-sm p-2 hover:bg-muted rounded-md transition-colors">
+            <div class="flex flex-col">
+              <span class="font-medium truncate max-w-[120px]">{{ tx.categoryName }}</span>
+              <span class="text-xs text-muted-foreground truncate max-w-[120px]">{{ tx.sourceName || 'Unknown' }}</span>
+            </div>
+            <div class="flex flex-col items-end">
+              <span class="font-medium font-mono" :class="tx.categoryType === 'Income' ? 'text-green-600' : 'text-red-600'">
+                {{ tx.categoryType === 'Income' ? '+' : '-' }}{{ settingsStore.formatCurrency(tx.amount) }}
+              </span>
+              <span class="text-[10px] uppercase text-muted-foreground">{{ tx.status }}</span>
+            </div>
           </div>
-        </div>
-        <div class="text-2xl font-bold text-amber-600 dark:text-amber-500">
-          {{ settingsStore.formatCurrency(store.summary.pendingIncome || 0) }}
-        </div>
-      </div>
-
-      <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between items-center text-muted-foreground mb-3">
-          <span class="font-medium text-sm">Pending Expense</span>
-          <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-            <Icons.Clock class="w-4 h-4 text-amber-600 dark:text-amber-500" />
-          </div>
-        </div>
-        <div class="text-2xl font-bold text-amber-600 dark:text-amber-500">
-          {{ settingsStore.formatCurrency(store.summary.pendingExpense || 0) }}
+          <div v-if="store.recentTransactions.length === 0" class="text-center text-muted-foreground py-4">No recent transactions</div>
         </div>
       </div>
     </div>
 
-    <!-- Charts Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Income vs Expense Trend -->
-      <div class="bg-card rounded-xl border shadow-sm flex flex-col">
-        <div class="p-5 border-b">
-          <h2 class="font-semibold flex items-center gap-2">
-            <Icons.BarChart3 class="w-4 h-4 text-muted-foreground" />
-            Income vs Expense (6 Months)
-          </h2>
+    <!-- Reports -->
+    <div class="grid gap-6 md:grid-cols-2">
+      <!-- Category Report -->
+      <div class="rounded-xl border bg-card shadow-sm flex flex-col h-[500px]">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h3 class="font-semibold">Top Categories</h3>
+          <select v-model="catSort" class="h-8 rounded-md border text-xs px-2 bg-background">
+            <option value="expense">Sort by Expense</option>
+            <option value="income">Sort by Income</option>
+            <option value="balance">Sort by Balance</option>
+          </select>
         </div>
-        <div class="p-5 flex-1 min-h-[300px] relative">
-          <Bar v-if="store.trend.length > 0" :data="trendBarData" :options="trendBarOptions" />
-          <div v-else class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-            <Icons.LineChart class="w-8 h-8 mb-2 opacity-50" />
-            <p>No trend data available</p>
+        <div class="flex-1 overflow-auto p-4 space-y-3">
+          <div 
+            v-for="cat in sortedCategoryReport" 
+            :key="cat.categoryId" 
+            class="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+            @click="openCategoryDetail(cat)"
+          >
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" :style="{ backgroundColor: `${cat.color}20`, color: cat.color }">
+                <span class="material-icons text-sm">{{ cat.icon }}</span>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <span class="font-medium truncate">{{ cat.name }}</span>
+                <span class="text-xs text-muted-foreground">{{ cat.percentage.toFixed(1) }}% of total expense</span>
+              </div>
+            </div>
+            <div class="flex flex-col items-end shrink-0 pl-4">
+              <span class="font-mono text-sm" :class="catSort === 'expense' ? 'text-red-600' : (catSort === 'income' ? 'text-green-600' : 'font-bold')">
+                {{ settingsStore.formatCurrency(cat[catSort]) }}
+              </span>
+              <span class="text-[10px] text-muted-foreground">Bal: {{ settingsStore.formatCurrency(cat.balance) }}</span>
+            </div>
           </div>
+          <div v-if="sortedCategoryReport.length === 0" class="text-center text-muted-foreground py-8">No category data</div>
         </div>
       </div>
 
-      <!-- Expense by Category -->
-      <div class="bg-card rounded-xl border shadow-sm flex flex-col">
-        <div class="p-5 border-b">
-          <h2 class="font-semibold flex items-center gap-2">
-            <Icons.PieChart class="w-4 h-4 text-muted-foreground" />
-            Expense by Category (This Month)
-          </h2>
+      <!-- Source Report -->
+      <div class="rounded-xl border bg-card shadow-sm flex flex-col h-[500px]">
+        <div class="p-4 border-b flex justify-between items-center">
+          <h3 class="font-semibold">Top Sources</h3>
+          <select v-model="srcSort" class="h-8 rounded-md border text-xs px-2 bg-background">
+            <option value="balance">Sort by Balance</option>
+            <option value="count">Sort by Tx Count</option>
+          </select>
         </div>
-        <div class="p-5 flex-1 min-h-[300px] relative">
-          <Doughnut v-if="store.expenseByCategory.length > 0" :data="expensePieData" :options="expensePieOptions" />
-          <div v-else class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-            <Icons.Donut class="w-8 h-8 mb-2 opacity-50" />
-            <p>No expenses this month</p>
+        <div class="flex-1 overflow-auto p-4 space-y-3">
+          <div 
+            v-for="src in sortedSourceReport" 
+            :key="src.sourceId" 
+            class="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+            @click="openSourceDetail(src)"
+          >
+            <div class="flex flex-col min-w-0">
+              <span class="font-medium truncate flex items-center gap-2">
+                <Icons.Building2 class="w-4 h-4 text-blue-500" />
+                {{ src.name }}
+              </span>
+              <span class="text-xs text-muted-foreground">{{ src.transactionCount }} transactions</span>
+            </div>
+            <div class="flex flex-col items-end shrink-0 pl-4">
+              <span class="font-mono text-sm font-bold" :class="src.balance >= 0 ? 'text-green-600' : 'text-red-600'">
+                {{ settingsStore.formatCurrency(src.balance) }}
+              </span>
+              <span class="text-[10px] text-muted-foreground">
+                <span class="text-green-600">+{{ settingsStore.formatCurrency(src.income) }}</span> | 
+                <span class="text-red-600">-{{ settingsStore.formatCurrency(src.expense) }}</span>
+              </span>
+            </div>
           </div>
+          <div v-if="sortedSourceReport.length === 0" class="text-center text-muted-foreground py-8">No source data</div>
         </div>
       </div>
     </div>
 
-    <!-- Bottom Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Top Categories -->
-      <div class="bg-card rounded-xl border shadow-sm flex flex-col">
-        <div class="p-5 border-b flex justify-between items-center">
-          <h2 class="font-semibold flex items-center gap-2">
-            <Icons.Trophy class="w-4 h-4 text-muted-foreground" />
-            Top Expenses
-          </h2>
-          <span class="text-xs text-muted-foreground px-2 py-1 bg-muted rounded">Current Month</span>
-        </div>
-        <div class="p-5 flex-1">
-          <div v-if="store.expenseByCategory.length === 0" class="text-center text-muted-foreground py-8">
-            No expenses found.
-          </div>
-          <div v-else class="space-y-4">
-            <div v-for="cat in store.expenseByCategory.slice(0, 5)" :key="cat.categoryId" class="space-y-1.5">
-              <div class="flex justify-between text-sm">
-                <span class="font-medium flex items-center gap-2">
-                  <span class="w-4 h-4 rounded flex items-center justify-center" :style="{ backgroundColor: cat.color + '30', color: cat.color }">
-                    <component :is="getIconComponent(cat.icon)" class="w-3 h-3" />
-                  </span>
-                  {{ cat.name }}
-                </span>
-                <span class="font-semibold">{{ settingsStore.formatCurrency(cat.totalAmount) }}</span>
-              </div>
-              <div class="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div 
-                  class="h-full rounded-full transition-all"
-                  :style="{ 
-                    width: `${(cat.totalAmount / (store.summary?.totalExpense || 1)) * 100}%`, 
-                    backgroundColor: cat.color 
-                  }"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recent Transactions -->
-      <div class="bg-card rounded-xl border shadow-sm flex flex-col">
-        <div class="p-5 border-b flex justify-between items-center">
-          <h2 class="font-semibold flex items-center gap-2">
-            <Icons.History class="w-4 h-4 text-muted-foreground" />
-            Recent Transactions
-          </h2>
-          <Button variant="ghost" size="sm" @click="router.push('/transactions')" class="h-7 text-xs">
-            View All
-          </Button>
-        </div>
-        <div class="p-0 flex-1 overflow-hidden">
-          <div v-if="store.recentTransactions.length === 0" class="text-center text-muted-foreground py-14">
-            <div class="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-              <Icons.ReceiptText class="w-6 h-6 opacity-50" />
-            </div>
-            <p>No transactions yet</p>
-            <Button variant="link" @click="openCreateTransaction" class="mt-2">
-              Create First Transaction
-            </Button>
-          </div>
-          <div v-else class="divide-y">
-            <div 
-              v-for="tx in store.recentTransactions" 
-              :key="tx.id"
-              class="p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors cursor-pointer"
-              @click="router.push('/transactions')"
-            >
-              <div 
-                class="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                :style="{ backgroundColor: tx.categoryColor + '20', color: tx.categoryColor }"
-              >
-                <component :is="getIconComponent(tx.categoryIcon)" class="w-5 h-5" />
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="font-medium text-foreground truncate">
-                  {{ tx.categoryName }}
-                </div>
-                <div class="text-xs text-muted-foreground truncate">
-                  {{ dayjs(tx.transactionDate).format('MMM D, HH:mm') }}
-                  <template v-if="tx.note"> &bull; {{ tx.note }}</template>
-                </div>
-              </div>
-              <div 
-                class="text-right font-semibold whitespace-nowrap text-sm"
-                :class="{
-                  'text-green-600 dark:text-green-400': tx.categoryType === 'Income',
-                  'text-red-600 dark:text-red-400': tx.categoryType === 'Expense'
-                }"
-              >
-                {{ tx.categoryType === 'Expense' ? '-' : '+' }}{{ settingsStore.formatCurrency(tx.amount) }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Reuse TransactionDialog for Quick Actions -->
-    <TransactionDialog 
-      v-model:open="dialogOpen"
-      @update:open="!$event && store.refresh()"
-    />
+    <!-- Modals -->
+    <TransactionDialog v-model:open="txDialogOpen" />
+    <CategoryDetailDialog v-model:open="categoryDetailOpen" :category="selectedCategory" :filters="store.filters" />
+    <SourceDetailDialog v-model:open="sourceDetailOpen" :source="selectedSource" :filters="store.filters" />
   </div>
 </template>

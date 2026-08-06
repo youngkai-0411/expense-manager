@@ -16,7 +16,7 @@ export function setupDataHandlers() {
       const data = db.select({
         date: transactions.transactionDate,
         categoryName: categories.name,
-        categoryType: categories.type,
+        categoryType: transactions.type,
         amount: transactions.amount,
         note: transactions.note
       })
@@ -64,13 +64,12 @@ export function setupDataHandlers() {
 
       if (canceled || !filePath) return false
 
-      let csvString = 'Name,Type,Icon,Color\n'
+      let csvString = 'Name,Icon,Color\n'
       data.forEach(row => {
         const name = `"${row.name.replace(/"/g, '""')}"`
-        const type = row.type
         const icon = row.icon || ''
         const color = row.color || ''
-        csvString += `${name},${type},${icon},${color}\n`
+        csvString += `${name},${icon},${color}\n`
       })
 
       fs.writeFileSync(filePath, '\uFEFF' + csvString, 'utf8')
@@ -89,7 +88,7 @@ export function setupDataHandlers() {
       const data = db.select({
         date: transactions.transactionDate,
         categoryName: categories.name,
-        categoryType: categories.type,
+        categoryType: transactions.type,
         amount: transactions.amount,
         note: transactions.note
       })

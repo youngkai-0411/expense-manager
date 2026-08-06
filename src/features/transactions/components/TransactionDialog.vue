@@ -5,6 +5,7 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { transactionSchema } from '../validators'
 import { useTransactionStore } from '../stores/useTransactionStore'
 import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
+import { useSourceStore } from '@/features/sources/stores/useSourceStore'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import Input from '@/components/ui/input/Input.vue'
 import Label from '@/components/ui/label/Label.vue'
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 
 const store = useTransactionStore()
 const categoryStore = useCategoryStore()
+const sourceStore = useSourceStore()
 
 const isEditing = computed(() => !!props.transactionId)
 const activeTransaction = computed(() => 
@@ -30,26 +32,33 @@ const activeTransaction = computed(() =>
 )
 
 if (categoryStore.categories.length === 0) categoryStore.loadCategories()
+if (sourceStore.sources.length === 0) sourceStore.loadSources()
 
 const { handleSubmit, resetForm, errors, isSubmitting } = useForm({
   validationSchema: toTypedSchema(transactionSchema),
   initialValues: {
     categoryId: undefined,
+    sourceId: undefined,
+    type: 'Expense',
     amount: 0,
     transactionDate: dayjs().format('YYYY-MM-DDTHH:mm'),
+    completedDate: undefined,
     note: '',
     status: 'Completed'
   }
 })
 
 const { value: categoryId } = useField<number>('categoryId')
+const { value: sourceId } = useField<number | null>('sourceId')
+const { value: type } = useField<'Income' | 'Expense'>('type')
 const { value: amount } = useField<number>('amount')
 const { value: transactionDate } = useField<string>('transactionDate')
+const { value: completedDate } = useField<string | undefined>('completedDate')
 const { value: note } = useField<string>('note')
 const { value: status } = useField<'Pending' | 'Completed'>('status')
 
-const incomeCategories = computed(() => categoryStore.categories.filter(c => !c.isArchived && c.type === 'Income'))
-const expenseCategories = computed(() => categoryStore.categories.filter(c => !c.isArchived && c.type === 'Expense'))
+const activeCategories = computed(() => categoryStore.categories.filter(c => !c.isArchived))
+const activeSources = computed(() => sourceStore.sources.filter(s => s.isActive))
 
 watch(() => props.open, (isOpen) => {
   if (isOpen) {
@@ -57,8 +66,11 @@ watch(() => props.open, (isOpen) => {
       resetForm({
         values: {
           categoryId: activeTransaction.value.categoryId,
+          sourceId: activeTransaction.value.sourceId || undefined,
+          type: activeTransaction.value.type,
           amount: activeTransaction.value.amount,
           transactionDate: dayjs(activeTransaction.value.transactionDate).format('YYYY-MM-DDTHH:mm'),
+          completedDate: activeTransaction.value.completedDate ? dayjs(activeTransaction.value.completedDate).format('YYYY-MM-DDTHH:mm') : undefined,
           note: activeTransaction.value.note || '',
           status: activeTransaction.value.status as 'Pending' | 'Completed' || 'Completed'
         }
@@ -67,8 +79,11 @@ watch(() => props.open, (isOpen) => {
       resetForm({
         values: {
           categoryId: undefined,
+          sourceId: undefined,
+          type: 'Expense',
           amount: 0,
           transactionDate: dayjs().format('YYYY-MM-DDTHH:mm'),
+          completedDate: undefined,
           note: '',
           status: 'Completed'
         }
@@ -81,6 +96,13 @@ const onSubmit = handleSubmit(async (values) => {
   try {
     const payload = values as CreateTransactionPayload
     payload.transactionDate = dayjs(payload.transactionDate).toISOString()
+    
+    // If status is completed but completedDate is not set or not in the payload
+    if (payload.status === 'Completed') {
+      payload.completedDate = payload.completedDate ? dayjs(payload.completedDate).toISOString() : payload.transactionDate
+    } else {
+      payload.completedDate = undefined
+    }
 
     if (isEditing.value && props.transactionId) {
       await store.updateTransaction({ id: props.transactionId, ...payload })
@@ -113,14 +135,37 @@ const onSubmit = handleSubmit(async (values) => {
             class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option disabled :value="undefined">Select Category</option>
-            <optgroup label="Expense" v-if="expenseCategories.length > 0">
-              <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </optgroup>
-            <optgroup label="Income" v-if="incomeCategories.length > 0">
-              <option v-for="c in incomeCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </optgroup>
+            <option v-for="c in activeCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
           <p v-if="errors.categoryId" class="text-xs text-destructive">{{ errors.categoryId }}</p>
+        </div>
+
+        <div class="space-y-2">
+          <Label for="sourceId">Source</Label>
+          <select 
+            id="sourceId" 
+            v-model="sourceId"
+            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option disabled :value="undefined">Select Source</option>
+            <option v-for="s in activeSources" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+          <p v-if="errors.sourceId" class="text-xs text-destructive">{{ errors.sourceId }}</p>
+        </div>
+
+        <div class="space-y-2">
+          <Label>Type</Label>
+          <div class="flex gap-4 items-center h-10">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" v-model="type" value="Income" class="accent-primary" />
+              <span>Income</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" v-model="type" value="Expense" class="accent-primary" />
+              <span>Expense</span>
+            </label>
+          </div>
+          <p v-if="errors.type" class="text-xs text-destructive">{{ errors.type }}</p>
         </div>
 
         <div class="space-y-2">
@@ -135,22 +180,6 @@ const onSubmit = handleSubmit(async (values) => {
           />
           <p v-if="errors.amount" class="text-xs text-destructive">{{ errors.amount }}</p>
         </div>
-        
-        <div class="space-y-2">
-          <Label for="transactionDate">Date & Time</Label>
-          <Input 
-            id="transactionDate" 
-            type="datetime-local" 
-            v-model="transactionDate" 
-          />
-          <p v-if="errors.transactionDate" class="text-xs text-destructive">{{ errors.transactionDate }}</p>
-        </div>
-
-        <div class="space-y-2">
-          <Label for="note">Note</Label>
-          <Input id="note" v-model="note" placeholder="Optional notes..." />
-          <p v-if="errors.note" class="text-xs text-destructive">{{ errors.note }}</p>
-        </div>
 
         <div class="space-y-2">
           <Label for="status">Status</Label>
@@ -163,6 +192,32 @@ const onSubmit = handleSubmit(async (values) => {
             <option value="Pending">Pending</option>
           </select>
           <p v-if="errors.status" class="text-xs text-destructive">{{ errors.status }}</p>
+        </div>
+        
+        <div class="space-y-2">
+          <Label for="transactionDate">Transaction Date</Label>
+          <Input 
+            id="transactionDate" 
+            type="datetime-local" 
+            v-model="transactionDate" 
+          />
+          <p v-if="errors.transactionDate" class="text-xs text-destructive">{{ errors.transactionDate }}</p>
+        </div>
+
+        <div v-if="status === 'Completed'" class="space-y-2">
+          <Label for="completedDate">Completed Date</Label>
+          <Input 
+            id="completedDate" 
+            type="datetime-local" 
+            v-model="completedDate" 
+          />
+          <p v-if="errors.completedDate" class="text-xs text-destructive">{{ errors.completedDate }}</p>
+        </div>
+
+        <div class="space-y-2">
+          <Label for="note">Note</Label>
+          <Input id="note" v-model="note" placeholder="Optional notes..." />
+          <p v-if="errors.note" class="text-xs text-destructive">{{ errors.note }}</p>
         </div>
 
         <div class="flex justify-end space-x-2 pt-4">

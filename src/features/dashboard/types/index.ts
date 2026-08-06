@@ -7,12 +7,40 @@ export interface DashboardSummary {
   pendingExpense?: number
 }
 
-export interface DashboardExpenseByCategory {
+export interface DashboardFilter {
+  startDate?: string
+  endDate?: string
+  categoryId?: number | 'All'
+  sourceId?: number | 'All'
+  type?: 'Income' | 'Expense' | 'All'
+  status?: 'Pending' | 'Completed' | 'Cancelled' | 'All'
+}
+
+export interface CategoryReportItem {
   categoryId: number
   name: string
   color: string
   icon: string
-  totalAmount: number
+  income: number
+  expense: number
+  balance: number
+  percentage: number
+}
+
+export interface SourceReportItem {
+  sourceId: number
+  name: string
+  income: number
+  expense: number
+  balance: number
+  transactionCount: number
+}
+
+export interface QuickInsights {
+  topExpenseCategory: string | null
+  topSource: string | null
+  pendingCount: number
+  currentBalance: number
 }
 
 export interface DashboardTrend {
@@ -26,9 +54,11 @@ export interface DashboardRecentTransaction {
   amount: number
   transactionDate: string
   note: string | null
+  status: 'Pending' | 'Completed' | 'Cancelled'
   categoryId: number
   categoryName: string
   categoryType: 'Income' | 'Expense'
   categoryColor: string
   categoryIcon: string
+  sourceName?: string | null
 }

@@ -1,16 +1,18 @@
 import { ipcMain } from 'electron'
 import { getConnection } from './database'
-import { categories, transactions, type NewCategory } from './database/schema'
+import { categories, sources, transactions, type NewCategory } from './database/schema'
 import { desc, eq, sql } from 'drizzle-orm'
 
 import { setupDashboardHandlers } from './ipc/dashboardHandlers'
 import { setupSettingsHandlers } from './ipc/settingsHandlers'
 import { setupDataHandlers } from './ipc/dataHandlers'
+import { setupSourceHandlers } from './ipc/sourceHandlers'
 
 export function setupIpcHandlers() {
   setupDashboardHandlers()
   setupSettingsHandlers()
   setupDataHandlers()
+  setupSourceHandlers()
 
   // === CATEGORIES ===
   
@@ -72,7 +74,23 @@ export function setupIpcHandlers() {
   ipcMain.handle('transaction:getAll', async () => {
     try {
       const db = getConnection()
-      return db.select().from(transactions).orderBy(desc(transactions.transactionDate), desc(transactions.createdAt)).all()
+      const rows = db
+        .select({
+          transaction: transactions,
+          categoryName: categories.name,
+          sourceName: sources.name
+        })
+        .from(transactions)
+        .leftJoin(categories, eq(transactions.categoryId, categories.id))
+        .leftJoin(sources, eq(transactions.sourceId, sources.id))
+        .orderBy(desc(transactions.transactionDate), desc(transactions.createdAt))
+        .all()
+        
+      return rows.map(r => ({
+        ...r.transaction,
+        categoryName: r.categoryName,
+        sourceName: r.sourceName
+      }))
     } catch (error) {
       console.error('Error fetching transactions:', error)
       throw error
@@ -160,13 +178,13 @@ export function setupIpcHandlers() {
     try {
       const db = getConnection()
       const result = db.select({
-        type: categories.type,
+        type: transactions.type,
         totalAmount: sql<number>`SUM(${transactions.amount})`
       })
       .from(transactions)
       .innerJoin(categories, eq(transactions.categoryId, categories.id))
       .where(eq(transactions.status, 'Pending'))
-      .groupBy(categories.type)
+      .groupBy(transactions.type)
       .all()
 
       let pendingIncome = 0

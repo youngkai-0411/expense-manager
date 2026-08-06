@@ -5,7 +5,6 @@ import type { Transaction, CreateTransactionPayload, UpdateTransactionPayload } 
 import { toast } from 'vue-sonner'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
-import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
 
 dayjs.extend(isBetween)
 
@@ -13,16 +12,15 @@ export const useTransactionStore = defineStore('transaction', () => {
   const transactions = ref<Transaction[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  
-  const categoryStore = useCategoryStore()
-
   // Filters
   const searchQuery = ref('')
   const typeFilter = ref<string>('All') // 'All', 'Income', 'Expense'
   const categoryFilter = ref<number | 'All'>('All')
+  const sourceFilter = ref<number | 'All'>('All')
   const statusFilter = ref<'All' | 'Pending' | 'Completed' | 'Cancelled'>('All')
   const dateRange = ref<{ start?: string, end?: string }>({})
-  const sortOrder = ref<'desc' | 'asc'>('desc')
+  const sortBy = ref<'transactionDate' | 'amount' | 'category' | 'source' | 'createdAt'>('transactionDate')
+  const sortDirection = ref<'desc' | 'asc'>('desc')
 
   // Computed
   const filteredTransactions = computed(() => {
@@ -30,18 +28,23 @@ export const useTransactionStore = defineStore('transaction', () => {
 
     if (searchQuery.value) {
       const lowerQuery = searchQuery.value.toLowerCase()
-      result = result.filter(t => t.note?.toLowerCase().includes(lowerQuery))
+      result = result.filter(t => 
+        t.note?.toLowerCase().includes(lowerQuery) ||
+        t.categoryName?.toLowerCase().includes(lowerQuery) ||
+        t.sourceName?.toLowerCase().includes(lowerQuery)
+      )
     }
 
     if (typeFilter.value !== 'All') {
-      result = result.filter(t => {
-        const cat = categoryStore.categories.find(c => c.id === t.categoryId)
-        return cat?.type === typeFilter.value
-      })
+      result = result.filter(tx => tx.type === typeFilter.value)
     }
 
     if (categoryFilter.value !== 'All') {
       result = result.filter(t => t.categoryId === categoryFilter.value)
+    }
+
+    if (sourceFilter.value !== 'All') {
+      result = result.filter(t => t.sourceId === sourceFilter.value)
     }
 
     if (statusFilter.value !== 'All') {
@@ -58,9 +61,19 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
 
     result.sort((a, b) => {
-      const dateA = new Date(a.transactionDate).getTime()
-      const dateB = new Date(b.transactionDate).getTime()
-      return sortOrder.value === 'desc' ? dateB - dateA : dateA - dateB
+      let comparison = 0
+      if (sortBy.value === 'transactionDate') {
+        comparison = new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+      } else if (sortBy.value === 'amount') {
+        comparison = a.amount - b.amount
+      } else if (sortBy.value === 'category') {
+        comparison = (a.categoryName || '').localeCompare(b.categoryName || '')
+      } else if (sortBy.value === 'source') {
+        comparison = (a.sourceName || '').localeCompare(b.sourceName || '')
+      } else if (sortBy.value === 'createdAt') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      }
+      return sortDirection.value === 'desc' ? -comparison : comparison
     })
 
     return result
@@ -80,7 +93,7 @@ export const useTransactionStore = defineStore('transaction', () => {
     
     // Sort groups descending
     return Object.keys(groups)
-      .sort((a, b) => sortOrder.value === 'desc' 
+      .sort((a, b) => sortDirection.value === 'desc' 
         ? new Date(b).getTime() - new Date(a).getTime() 
         : new Date(a).getTime() - new Date(b).getTime()
       )
@@ -168,9 +181,11 @@ export const useTransactionStore = defineStore('transaction', () => {
     searchQuery,
     typeFilter,
     categoryFilter,
+    sourceFilter,
     statusFilter,
     dateRange,
-    sortOrder,
+    sortBy,
+    sortDirection,
     filteredTransactions,
     groupedTransactions,
     loadTransactions,

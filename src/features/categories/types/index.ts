@@ -1,7 +1,7 @@
 export interface Category {
   id: number
   name: string
-  type: 'Income' | 'Expense'
+  description: string | null
   icon: string | null
   color: string | null
   isArchived: boolean
@@ -11,11 +11,15 @@ export interface Category {
 
 export interface CreateCategoryPayload {
   name: string
-  type: 'Income' | 'Expense'
-  icon?: string | null
-  color?: string | null
+  description?: string
+  icon?: string
+  color?: string
 }
 
-export interface UpdateCategoryPayload extends Partial<CreateCategoryPayload> {
+export interface UpdateCategoryPayload {
   id: number
+  name?: string
+  description?: string
+  icon?: string
+  color?: string
 }
