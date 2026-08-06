@@ -139,11 +139,11 @@ const trendBarOptions = {
       </Button>
     </div>
 
-    <div v-if="store.isLoading && !store.summary" class="grid grid-cols-1 md:grid-cols-4 gap-4 animate-pulse">
-      <div v-for="i in 4" :key="i" class="h-28 bg-muted rounded-xl"></div>
+    <div v-if="store.isLoading && !store.summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-pulse">
+      <div v-for="i in 6" :key="i" class="h-28 bg-muted rounded-xl"></div>
     </div>
 
-    <div v-else-if="store.summary" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div v-else-if="store.summary" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
       <!-- Summary Cards -->
       <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
         <div class="flex justify-between items-center text-muted-foreground mb-3">
@@ -190,6 +190,31 @@ const trendBarOptions = {
         </div>
         <div class="text-2xl font-bold text-foreground">
           {{ store.summary.totalTransactions }}
+        </div>
+      </div>
+
+      <!-- Pending Summary Cards -->
+      <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
+        <div class="flex justify-between items-center text-muted-foreground mb-3">
+          <span class="font-medium text-sm">Pending Income</span>
+          <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <Icons.Clock class="w-4 h-4 text-amber-600 dark:text-amber-500" />
+          </div>
+        </div>
+        <div class="text-2xl font-bold text-amber-600 dark:text-amber-500">
+          {{ settingsStore.formatCurrency(store.summary.pendingIncome || 0) }}
+        </div>
+      </div>
+
+      <div class="bg-card rounded-xl p-5 border shadow-sm flex flex-col justify-between">
+        <div class="flex justify-between items-center text-muted-foreground mb-3">
+          <span class="font-medium text-sm">Pending Expense</span>
+          <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <Icons.Clock class="w-4 h-4 text-amber-600 dark:text-amber-500" />
+          </div>
+        </div>
+        <div class="text-2xl font-bold text-amber-600 dark:text-amber-500">
+          {{ settingsStore.formatCurrency(store.summary.pendingExpense || 0) }}
         </div>
       </div>
     </div>

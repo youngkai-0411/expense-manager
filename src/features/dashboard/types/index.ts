@@ -3,6 +3,8 @@ export interface DashboardSummary {
   totalExpense: number
   netBalance: number
   totalTransactions: number
+  pendingIncome?: number
+  pendingExpense?: number
 }
 
 export interface DashboardExpenseByCategory {

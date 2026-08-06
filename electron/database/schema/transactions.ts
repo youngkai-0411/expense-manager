@@ -12,6 +12,8 @@ export const transactions = sqliteTable(
     amount: real('amount').notNull(),
     transactionDate: text('transaction_date').notNull(),
     note: text('note'),
+    status: text('status').notNull().default('Completed'),
+    completedDate: text('completed_date'),
     createdAt: text('created_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
     updatedAt: text('updated_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },

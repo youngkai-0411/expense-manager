@@ -4,6 +4,8 @@ export interface Transaction {
   amount: number
   transactionDate: string
   note: string | null
+  status: 'Pending' | 'Completed' | 'Cancelled'
+  completedDate: string | null
   createdAt: string
   updatedAt: string
 }
@@ -13,6 +15,7 @@ export interface CreateTransactionPayload {
   amount: number
   transactionDate: string
   note?: string | null
+  status?: 'Pending' | 'Completed'
 }
 
 export interface UpdateTransactionPayload extends Partial<CreateTransactionPayload> {

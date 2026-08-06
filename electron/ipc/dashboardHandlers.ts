@@ -15,7 +15,10 @@ export function setupDashboardHandlers() {
       })
       .from(transactions)
       .innerJoin(categories, eq(transactions.categoryId, categories.id))
-      .where(sql`strftime('%Y-%m', ${transactions.transactionDate}) = ${yearMonth}`)
+      .where(and(
+        sql`strftime('%Y-%m', ${transactions.transactionDate}) = ${yearMonth}`,
+        eq(transactions.status, 'Completed')
+      ))
       .groupBy(categories.type)
       .all()
 
@@ -31,7 +34,10 @@ export function setupDashboardHandlers() {
         count: sql<number>`COUNT(*)`
       })
       .from(transactions)
-      .where(sql`strftime('%Y-%m', ${transactions.transactionDate}) = ${yearMonth}`)
+      .where(and(
+        sql`strftime('%Y-%m', ${transactions.transactionDate}) = ${yearMonth}`,
+        eq(transactions.status, 'Completed')
+      ))
       .get()
 
       return {
@@ -60,7 +66,8 @@ export function setupDashboardHandlers() {
       .innerJoin(categories, eq(transactions.categoryId, categories.id))
       .where(and(
         sql`strftime('%Y-%m', ${transactions.transactionDate}) = ${yearMonth}`,
-        eq(categories.type, 'Expense')
+        eq(categories.type, 'Expense'),
+        eq(transactions.status, 'Completed')
       ))
       .groupBy(categories.id)
       .orderBy(desc(sql<number>`SUM(${transactions.amount})`))
@@ -89,6 +96,7 @@ export function setupDashboardHandlers() {
       })
       .from(transactions)
       .innerJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(eq(transactions.status, 'Completed'))
       .orderBy(desc(transactions.transactionDate), desc(transactions.createdAt))
       .limit(10)
       .all()
@@ -118,7 +126,10 @@ export function setupDashboardHandlers() {
       })
       .from(transactions)
       .innerJoin(categories, eq(transactions.categoryId, categories.id))
-      .where(sql`strftime('%Y-%m', ${transactions.transactionDate}) >= ${sixMonthsAgo}`)
+      .where(and(
+        sql`strftime('%Y-%m', ${transactions.transactionDate}) >= ${sixMonthsAgo}`,
+        eq(transactions.status, 'Completed')
+      ))
       .groupBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`, categories.type)
       .all()
 

@@ -37,7 +37,8 @@ const { handleSubmit, resetForm, errors, isSubmitting } = useForm({
     categoryId: undefined,
     amount: 0,
     transactionDate: dayjs().format('YYYY-MM-DDTHH:mm'),
-    note: ''
+    note: '',
+    status: 'Completed'
   }
 })
 
@@ -45,6 +46,7 @@ const { value: categoryId } = useField<number>('categoryId')
 const { value: amount } = useField<number>('amount')
 const { value: transactionDate } = useField<string>('transactionDate')
 const { value: note } = useField<string>('note')
+const { value: status } = useField<'Pending' | 'Completed'>('status')
 
 const incomeCategories = computed(() => categoryStore.categories.filter(c => !c.isArchived && c.type === 'Income'))
 const expenseCategories = computed(() => categoryStore.categories.filter(c => !c.isArchived && c.type === 'Expense'))
@@ -57,7 +59,8 @@ watch(() => props.open, (isOpen) => {
           categoryId: activeTransaction.value.categoryId,
           amount: activeTransaction.value.amount,
           transactionDate: dayjs(activeTransaction.value.transactionDate).format('YYYY-MM-DDTHH:mm'),
-          note: activeTransaction.value.note || ''
+          note: activeTransaction.value.note || '',
+          status: activeTransaction.value.status as 'Pending' | 'Completed' || 'Completed'
         }
       })
     } else {
@@ -66,7 +69,8 @@ watch(() => props.open, (isOpen) => {
           categoryId: undefined,
           amount: 0,
           transactionDate: dayjs().format('YYYY-MM-DDTHH:mm'),
-          note: ''
+          note: '',
+          status: 'Completed'
         }
       })
     }
@@ -146,6 +150,19 @@ const onSubmit = handleSubmit(async (values) => {
           <Label for="note">Note</Label>
           <Input id="note" v-model="note" placeholder="Optional notes..." />
           <p v-if="errors.note" class="text-xs text-destructive">{{ errors.note }}</p>
+        </div>
+
+        <div class="space-y-2">
+          <Label for="status">Status</Label>
+          <select 
+            id="status" 
+            v-model="status"
+            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="Completed">Completed</option>
+            <option value="Pending">Pending</option>
+          </select>
+          <p v-if="errors.status" class="text-xs text-destructive">{{ errors.status }}</p>
         </div>
 
         <div class="flex justify-end space-x-2 pt-4">

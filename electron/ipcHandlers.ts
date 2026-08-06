@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { getConnection } from './database'
 import { categories, transactions, type NewCategory } from './database/schema'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 
 import { setupDashboardHandlers } from './ipc/dashboardHandlers'
 import { setupSettingsHandlers } from './ipc/settingsHandlers'
@@ -82,7 +82,12 @@ export function setupIpcHandlers() {
   ipcMain.handle('transaction:create', async (_event, data: any) => {
     try {
       const db = getConnection()
-      const result = db.insert(transactions).values(data).returning().get()
+      
+      const status = data.status || 'Completed'
+      const completedDate = status === 'Completed' ? data.transactionDate : null
+      const payload = { ...data, status, completedDate }
+      
+      const result = db.insert(transactions).values(payload).returning().get()
       return result
     } catch (error) {
       console.error('Error creating transaction:', error)
@@ -93,9 +98,15 @@ export function setupIpcHandlers() {
   ipcMain.handle('transaction:update', async (_event, id: number, data: any) => {
     try {
       const db = getConnection()
+      
+      let payload = { ...data, updatedAt: new Date().toISOString() }
+      if (data.status) {
+        payload.completedDate = data.status === 'Completed' ? data.transactionDate : null
+      }
+
       const result = db
         .update(transactions)
-        .set({ ...data, updatedAt: new Date().toISOString() })
+        .set(payload)
         .where(eq(transactions.id, id))
         .returning()
         .get()
@@ -114,6 +125,60 @@ export function setupIpcHandlers() {
       return result
     } catch (error) {
       console.error('Error deleting transaction:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('transaction:updateStatus', async (_event, id: number, newStatus: string) => {
+    try {
+      const db = getConnection()
+      
+      // Fetch the transaction to get its transactionDate
+      const tx = db.select().from(transactions).where(eq(transactions.id, id)).get()
+      if (!tx) throw new Error('Transaction not found')
+
+      const completedDate = newStatus === 'Completed' ? tx.transactionDate : null
+
+      const result = db
+        .update(transactions)
+        .set({ 
+          status: newStatus, 
+          completedDate, 
+          updatedAt: new Date().toISOString() 
+        })
+        .where(eq(transactions.id, id))
+        .returning()
+        .get()
+      return result
+    } catch (error) {
+      console.error('Error updating transaction status:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('transaction:getPendingSummary', async () => {
+    try {
+      const db = getConnection()
+      const result = db.select({
+        type: categories.type,
+        totalAmount: sql<number>`SUM(${transactions.amount})`
+      })
+      .from(transactions)
+      .innerJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(eq(transactions.status, 'Pending'))
+      .groupBy(categories.type)
+      .all()
+
+      let pendingIncome = 0
+      let pendingExpense = 0
+      for (const t of result) {
+        if (t.type === 'Income') pendingIncome = t.totalAmount || 0
+        if (t.type === 'Expense') pendingExpense = t.totalAmount || 0
+      }
+
+      return { pendingIncome, pendingExpense }
+    } catch (error) {
+      console.error('Error fetching pending summary:', error)
       throw error
     }
   })

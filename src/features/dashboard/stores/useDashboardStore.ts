@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { dashboardApi } from '../ipc'
+import { transactionApi } from '@/features/transactions/ipc'
 import type { DashboardSummary, DashboardExpenseByCategory, DashboardTrend, DashboardRecentTransaction } from '../types'
 import dayjs from 'dayjs'
 import { toast } from 'vue-sonner'
@@ -21,14 +22,19 @@ export const useDashboardStore = defineStore('dashboard', () => {
       
       const currentMonth = dayjs().format('YYYY-MM')
       
-      const [sum, exp, trd, rct] = await Promise.all([
+      const [sum, exp, trd, rct, pending] = await Promise.all([
         dashboardApi.getSummary(currentMonth),
         dashboardApi.getExpenseByCategory(currentMonth),
         dashboardApi.getIncomeExpenseTrend(),
-        dashboardApi.getRecentTransactions()
+        dashboardApi.getRecentTransactions(),
+        transactionApi.getPendingSummary()
       ])
 
-      summary.value = sum
+      summary.value = {
+        ...sum,
+        pendingIncome: pending.pendingIncome,
+        pendingExpense: pending.pendingExpense
+      }
       expenseByCategory.value = exp
       trend.value = trd
       recentTransactions.value = rct

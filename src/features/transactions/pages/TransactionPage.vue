@@ -8,6 +8,7 @@ import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
 import * as Icons from '@lucide/vue'
 import dayjs from 'dayjs'
+import { toast } from 'vue-sonner'
 
 const store = useTransactionStore()
 const categoryStore = useCategoryStore()
@@ -29,6 +30,15 @@ const openEditDialog = (id: number) => {
 const confirmArchive = async (id: number) => {
   if (confirm('Are you sure you want to delete this transaction?')) {
     await store.archiveTransaction(id)
+  }
+}
+
+const markAsCompleted = async (id: number) => {
+  try {
+    await store.updateStatus(id, 'Completed')
+    toast.success('Transaction marked as completed.')
+  } catch (e) {
+    // error is handled by store
   }
 }
 
@@ -77,6 +87,16 @@ onMounted(async () => {
         <option value="All">All Types</option>
         <option value="Income">Income</option>
         <option value="Expense">Expense</option>
+      </select>
+
+      <select 
+        v-model="store.statusFilter"
+        class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="All">All Status</option>
+        <option value="Completed">Completed</option>
+        <option value="Pending">Pending</option>
+        <option value="Cancelled">Cancelled</option>
       </select>
 
       <select 
@@ -149,6 +169,17 @@ onMounted(async () => {
                     <span class="mx-1.5 text-muted-foreground/40">•</span>
                     <span class="truncate">{{ tx.note }}</span>
                   </template>
+                  <span class="mx-1.5 text-muted-foreground/40">•</span>
+                  <span 
+                    class="px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider"
+                    :class="{
+                      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': tx.status === 'Completed' || !tx.status,
+                      'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400': tx.status === 'Pending',
+                      'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400': tx.status === 'Cancelled'
+                    }"
+                  >
+                    {{ tx.status || 'Completed' }}
+                  </span>
                 </div>
               </div>
 
@@ -164,7 +195,10 @@ onMounted(async () => {
                   {{ getCategory(tx.categoryId)?.type === 'Expense' ? '-' : (getCategory(tx.categoryId)?.type === 'Income' ? '+' : '') }}{{ settingsStore.formatCurrency(tx.amount) }}
                 </div>
                 
-                <div class="flex items-center opacity-0 group-hover/tx:opacity-100 transition-opacity gap-1 w-16 justify-end">
+                <div class="flex items-center opacity-0 group-hover/tx:opacity-100 transition-opacity gap-1 min-w-[5rem] justify-end">
+                  <Button v-if="tx.status === 'Pending'" variant="ghost" size="icon" class="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-100/50" @click="markAsCompleted(tx.id)" title="Mark as Completed">
+                    <Icons.CheckCircle class="w-4 h-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground" @click="openEditDialog(tx.id)" title="Edit">
                     <Icons.Pencil class="w-4 h-4" />
                   </Button>

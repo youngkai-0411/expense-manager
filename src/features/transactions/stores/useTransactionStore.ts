@@ -20,6 +20,7 @@ export const useTransactionStore = defineStore('transaction', () => {
   const searchQuery = ref('')
   const typeFilter = ref<string>('All') // 'All', 'Income', 'Expense'
   const categoryFilter = ref<number | 'All'>('All')
+  const statusFilter = ref<'All' | 'Pending' | 'Completed' | 'Cancelled'>('All')
   const dateRange = ref<{ start?: string, end?: string }>({})
   const sortOrder = ref<'desc' | 'asc'>('desc')
 
@@ -41,6 +42,10 @@ export const useTransactionStore = defineStore('transaction', () => {
 
     if (categoryFilter.value !== 'All') {
       result = result.filter(t => t.categoryId === categoryFilter.value)
+    }
+
+    if (statusFilter.value !== 'All') {
+      result = result.filter(t => t.status === statusFilter.value)
     }
 
     if (dateRange.value.start && dateRange.value.end) {
@@ -129,6 +134,21 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
+  const updateStatus = async (id: number, status: 'Pending' | 'Completed' | 'Cancelled') => {
+    try {
+      const updatedTx = await transactionApi.updateStatus(id, status)
+      const index = transactions.value.findIndex(t => t.id === id)
+      if (index !== -1) {
+        transactions.value[index] = updatedTx
+      }
+      return updatedTx
+    } catch (e: any) {
+      const msg = e.message || 'Failed to update status'
+      toast.error(msg)
+      throw new Error(msg)
+    }
+  }
+
   const archiveTransaction = async (id: number) => {
     try {
       await transactionApi.archive(id)
@@ -148,6 +168,7 @@ export const useTransactionStore = defineStore('transaction', () => {
     searchQuery,
     typeFilter,
     categoryFilter,
+    statusFilter,
     dateRange,
     sortOrder,
     filteredTransactions,
@@ -155,6 +176,7 @@ export const useTransactionStore = defineStore('transaction', () => {
     loadTransactions,
     createTransaction,
     updateTransaction,
+    updateStatus,
     archiveTransaction
   }
 })
