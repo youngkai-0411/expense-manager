@@ -89,6 +89,12 @@ watch(() => props.open, (isOpen) => {
         }
       })
     }
+  } else {
+    // Radix Dialog sometimes leaves pointer-events: none on the body if it closes abruptly.
+    // This explicitly cleans it up to prevent the UI from becoming unclickable.
+    setTimeout(() => {
+      document.body.style.pointerEvents = ''
+    }, 100)
   }
 })
 
@@ -109,7 +115,11 @@ const onSubmit = handleSubmit(async (values) => {
     } else {
       await store.createTransaction(payload)
     }
-    emit('update:open', false)
+    
+    // Slight delay to allow state changes to settle before closing, avoiding Radix issues
+    setTimeout(() => {
+      emit('update:open', false)
+    }, 50)
   } catch (error) {
     // Error handled in store
   }

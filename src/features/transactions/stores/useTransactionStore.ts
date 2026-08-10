@@ -119,10 +119,9 @@ export const useTransactionStore = defineStore('transaction', () => {
 
   const createTransaction = async (payload: CreateTransactionPayload) => {
     try {
-      const newTx = await transactionApi.create(payload)
-      transactions.value.push(newTx)
+      await transactionApi.create(payload)
+      await loadTransactions()
       toast.success('Transaction created successfully')
-      return newTx
     } catch (e: any) {
       const msg = e.message || 'Failed to create transaction'
       toast.error(msg)
@@ -133,13 +132,9 @@ export const useTransactionStore = defineStore('transaction', () => {
   const updateTransaction = async (payload: UpdateTransactionPayload) => {
     try {
       const { id, ...data } = payload
-      const updatedTx = await transactionApi.update(id, data)
-      const index = transactions.value.findIndex(t => t.id === id)
-      if (index !== -1) {
-        transactions.value[index] = updatedTx
-      }
+      await transactionApi.update(id, data)
+      await loadTransactions()
       toast.success('Transaction updated successfully')
-      return updatedTx
     } catch (e: any) {
       const msg = e.message || 'Failed to update transaction'
       toast.error(msg)
@@ -149,12 +144,8 @@ export const useTransactionStore = defineStore('transaction', () => {
 
   const updateStatus = async (id: number, status: 'Pending' | 'Completed' | 'Cancelled') => {
     try {
-      const updatedTx = await transactionApi.updateStatus(id, status)
-      const index = transactions.value.findIndex(t => t.id === id)
-      if (index !== -1) {
-        transactions.value[index] = updatedTx
-      }
-      return updatedTx
+      await transactionApi.updateStatus(id, status)
+      await loadTransactions()
     } catch (e: any) {
       const msg = e.message || 'Failed to update status'
       toast.error(msg)
