@@ -222,18 +222,20 @@ onMounted(async () => {
               </div>
 
               <!-- Amount & Actions -->
-              <div class="flex items-center gap-4 shrink-0">
-                <span 
-                  class="font-medium whitespace-nowrap"
-                  :class="{
-                    'text-green-600 dark:text-green-400': tx.type === 'Income',
-                    'text-red-600 dark:text-red-400': tx.type === 'Expense'
-                  }"
-                >
-                  {{ tx.type === 'Expense' ? '-' : (tx.type === 'Income' ? '+' : '') }}{{ settingsStore.formatCurrency(tx.amount) }}
-                </span>
+              <div class="flex items-center shrink-0">
+                <div class="w-32 text-right">
+                  <span 
+                    class="font-medium whitespace-nowrap"
+                    :class="{
+                      'text-green-600 dark:text-green-400': tx.type === 'Income',
+                      'text-red-600 dark:text-red-400': tx.type === 'Expense'
+                    }"
+                  >
+                    {{ tx.type === 'Expense' ? '-' : (tx.type === 'Income' ? '+' : '') }}{{ settingsStore.formatCurrency(tx.amount) }}
+                  </span>
+                </div>
                 
-                <div class="flex items-center opacity-0 group-hover/tx:opacity-100 transition-opacity gap-1 min-w-[5rem] justify-end">
+                <div class="flex items-center opacity-0 group-hover/tx:opacity-100 transition-opacity gap-1 w-36 justify-end ml-4">
                   <Button variant="ghost" size="icon" class="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-100/50" @click="openDetailDialog(tx.id)" title="View Details">
                     <Icons.Eye class="w-4 h-4" />
                   </Button>
