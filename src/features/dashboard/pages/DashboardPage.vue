@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDashboardStore } from '../stores/useDashboardStore'
+import { useTransactionStore } from '@/features/transactions/stores/useTransactionStore'
 import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
 import { useSourceStore } from '@/features/sources/stores/useSourceStore'
 import { useSettingsStore } from '@/features/settings/stores/useSettingsStore'
@@ -21,10 +22,20 @@ import type { CategoryReportItem, SourceReportItem } from '../types'
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
 
 const store = useDashboardStore()
+const transactionStore = useTransactionStore()
 const categoryStore = useCategoryStore()
 const sourceStore = useSourceStore()
 const settingsStore = useSettingsStore()
 const router = useRouter()
+
+// Automatically refresh dashboard when transactions change
+transactionStore.$onAction(({ name, after }) => {
+  if (['createTransaction', 'updateTransaction', 'updateStatus', 'archiveTransaction'].includes(name)) {
+    after(() => {
+      store.refresh()
+    })
+  }
+})
 
 const txDialogOpen = ref(false)
 const categoryDetailOpen = ref(false)
