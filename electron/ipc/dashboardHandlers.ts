@@ -3,9 +3,11 @@ import { getConnection } from '../database'
 import { categories, sources, transactions } from '../database/schema'
 import { and, desc, eq, sql, gte, lte } from 'drizzle-orm'
 import dayjs from 'dayjs'
+import { AccountService } from '../services/AccountService'
 
-function buildWhereClause(filters: any, requiredStatus?: string) {
+function buildWhereClause(filters: any, requiredStatus?: string, accountId?: number) {
   const conditions = []
+  if (accountId) conditions.push(eq(transactions.accountId, accountId))
   if (filters?.startDate) conditions.push(gte(transactions.transactionDate, filters.startDate))
   if (filters?.endDate) conditions.push(lte(transactions.transactionDate, filters.endDate + 'T23:59:59.999Z'))
   if (filters?.categoryId && filters.categoryId !== 'All') conditions.push(eq(transactions.categoryId, filters.categoryId))
@@ -25,17 +27,22 @@ function buildWhereClause(filters: any, requiredStatus?: string) {
 }
 
 export function setupDashboardHandlers() {
+  const accountService = new AccountService()
+
   ipcMain.handle('dashboard:getSummary', async (_event, filters: any) => {
     try {
       const db = getConnection()
       
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) throw new Error('No active account')
+
       // Completed Totals
       const completedTotals = db.select({
         totalAmount: sql<number>`SUM(${transactions.amount})`,
         type: transactions.type
       })
       .from(transactions)
-      .where(buildWhereClause(filters, 'Completed'))
+      .where(buildWhereClause(filters, 'Completed', accountId))
       .groupBy(transactions.type)
       .all()
 
@@ -50,7 +57,7 @@ export function setupDashboardHandlers() {
         count: sql<number>`COUNT(*)`
       })
       .from(transactions)
-      .where(buildWhereClause(filters, 'Completed'))
+      .where(buildWhereClause(filters, 'Completed', accountId))
       .get()
 
       // Pending Totals
@@ -59,7 +66,7 @@ export function setupDashboardHandlers() {
         type: transactions.type
       })
       .from(transactions)
-      .where(buildWhereClause(filters, 'Pending'))
+      .where(buildWhereClause(filters, 'Pending', accountId))
       .groupBy(transactions.type)
       .all()
 
@@ -87,6 +94,9 @@ export function setupDashboardHandlers() {
   ipcMain.handle('dashboard:getCategoryReport', async (_event, filters: any) => {
     try {
       const db = getConnection()
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) return []
+
       const data = db.select({
         categoryId: categories.id,
         name: categories.name,
@@ -97,7 +107,7 @@ export function setupDashboardHandlers() {
       })
       .from(transactions)
       .innerJoin(categories, eq(transactions.categoryId, categories.id))
-      .where(buildWhereClause(filters))
+      .where(buildWhereClause(filters, undefined, accountId))
       .groupBy(categories.id, transactions.type)
       .all()
 
@@ -140,6 +150,9 @@ export function setupDashboardHandlers() {
     try {
       const db = getConnection()
       
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) return []
+
       const data = db.select({
         sourceId: transactions.sourceId,
         sourceName: sources.name,
@@ -149,7 +162,7 @@ export function setupDashboardHandlers() {
       })
       .from(transactions)
       .leftJoin(sources, eq(transactions.sourceId, sources.id))
-      .where(buildWhereClause(filters))
+      .where(buildWhereClause(filters, undefined, accountId))
       .groupBy(transactions.sourceId, transactions.type)
       .all()
 
@@ -231,13 +244,16 @@ export function setupDashboardHandlers() {
       // override filters to ignore start date but keep end date for trend
       const trendFilters = { ...filters, startDate: sixMonthsAgo }
 
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) return []
+
       const data = db.select({
         month: sql<string>`strftime('%Y-%m', ${transactions.transactionDate})`,
         type: transactions.type,
         totalAmount: sql<number>`SUM(${transactions.amount})`
       })
       .from(transactions)
-      .where(buildWhereClause(trendFilters))
+      .where(buildWhereClause(trendFilters, undefined, accountId))
       .groupBy(sql`strftime('%Y-%m', ${transactions.transactionDate})`, transactions.type)
       .all()
 

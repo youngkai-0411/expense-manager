@@ -48,8 +48,8 @@ export class SourceRepository {
     return db.select().from(sources).where(eq(sources.id, id)).get()
   }
 
-  async findAll() {
+  async findAllByAccount(accountId: number) {
     const db = getConnection()
-    return db.select().from(sources).orderBy(desc(sources.createdAt)).all()
+    return db.select().from(sources).where(eq(sources.accountId, accountId)).orderBy(desc(sources.createdAt)).all()
   }
 }

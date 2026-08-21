@@ -1,11 +1,16 @@
 import { sql } from 'drizzle-orm'
-import { integer, sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { accounts } from './accounts'
 
 export const sources = sqliteTable(
   'sources',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
-    name: text('name').notNull().unique(),
+    accountId: integer('account_id')
+      .notNull()
+      .default(1)
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
     description: text('description'),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
     createdAt: text('created_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
@@ -13,6 +18,7 @@ export const sources = sqliteTable(
   },
   (table) => [
     index('sources_name_idx').on(table.name),
+    uniqueIndex('sources_account_name_unique').on(table.accountId, table.name),
   ],
 )
 

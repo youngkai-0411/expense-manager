@@ -1,25 +1,32 @@
 import { ipcMain } from 'electron'
 import { getConnection } from './database'
 import { categories, sources, transactions, type NewCategory } from './database/schema'
-import { desc, eq, sql } from 'drizzle-orm'
+import { desc, eq, and, sql } from 'drizzle-orm'
+import { AccountService } from './services/AccountService'
 
 import { setupDashboardHandlers } from './ipc/dashboardHandlers'
 import { setupSettingsHandlers } from './ipc/settingsHandlers'
 import { setupDataHandlers } from './ipc/dataHandlers'
 import { setupSourceHandlers } from './ipc/sourceHandlers'
+import { setupAccountHandlers } from './ipc/accountHandlers'
 
 export function setupIpcHandlers() {
   setupDashboardHandlers()
   setupSettingsHandlers()
   setupDataHandlers()
   setupSourceHandlers()
+  setupAccountHandlers()
+
+  const accountService = new AccountService()
 
   // === CATEGORIES ===
   
   ipcMain.handle('category:getAll', async () => {
     try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) return []
       const db = getConnection()
-      return db.select().from(categories).orderBy(desc(categories.createdAt)).all()
+      return db.select().from(categories).where(eq(categories.accountId, accountId)).orderBy(desc(categories.createdAt)).all()
     } catch (error) {
       console.error('Error fetching categories:', error)
       throw error
@@ -28,6 +35,9 @@ export function setupIpcHandlers() {
 
   ipcMain.handle('category:create', async (_event, data: NewCategory) => {
     try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) throw new Error('No active account')
+      data.accountId = accountId
       const db = getConnection()
       const result = db.insert(categories).values(data).returning().get()
       return result
@@ -73,6 +83,8 @@ export function setupIpcHandlers() {
   
   ipcMain.handle('transaction:getAll', async () => {
     try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) return []
       const db = getConnection()
       const rows = db
         .select({
@@ -83,6 +95,7 @@ export function setupIpcHandlers() {
         .from(transactions)
         .leftJoin(categories, eq(transactions.categoryId, categories.id))
         .leftJoin(sources, eq(transactions.sourceId, sources.id))
+        .where(eq(transactions.accountId, accountId))
         .orderBy(desc(transactions.transactionDate), desc(transactions.createdAt))
         .all()
         
@@ -99,11 +112,13 @@ export function setupIpcHandlers() {
 
   ipcMain.handle('transaction:create', async (_event, data: any) => {
     try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) throw new Error('No active account')
       const db = getConnection()
       
       const status = data.status || 'Completed'
       const completedDate = status === 'Completed' ? data.transactionDate : null
-      const payload = { ...data, status, completedDate }
+      const payload = { ...data, accountId, status, completedDate }
       
       const result = db.insert(transactions).values(payload).returning().get()
       return result
@@ -176,6 +191,8 @@ export function setupIpcHandlers() {
 
   ipcMain.handle('transaction:getPendingSummary', async () => {
     try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) return { pendingIncome: 0, pendingExpense: 0 }
       const db = getConnection()
       const result = db.select({
         type: transactions.type,
@@ -183,7 +200,7 @@ export function setupIpcHandlers() {
       })
       .from(transactions)
       .innerJoin(categories, eq(transactions.categoryId, categories.id))
-      .where(eq(transactions.status, 'Pending'))
+      .where(and(eq(transactions.accountId, accountId), eq(transactions.status, 'Pending')))
       .groupBy(transactions.type)
       .all()
 

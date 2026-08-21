@@ -3,13 +3,30 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 import { useSettingsStore } from '@/features/settings/stores/useSettingsStore'
+import { useAccountStore } from '@/features/accounts/stores/useAccountStore'
+import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
+import { useSourceStore } from '@/features/sources/stores/useSourceStore'
+import { useTransactionStore } from '@/features/transactions/stores/useTransactionStore'
+import { useDashboardStore } from '@/features/dashboard/stores/useDashboardStore'
+import AccountSwitcher from '@/features/accounts/components/AccountSwitcher.vue'
+import { watch } from 'vue'
 import * as Icons from '@lucide/vue'
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
+const accountStore = useAccountStore()
 
 onMounted(async () => {
   await settingsStore.loadSettings()
+})
+
+watch(() => accountStore.currentAccountId, (newId) => {
+  if (newId) {
+    useCategoryStore().loadCategories()
+    useSourceStore().loadSources()
+    useTransactionStore().loadTransactions()
+    useDashboardStore().loadDashboard()
+  }
 })
 </script>
 
@@ -18,12 +35,15 @@ onMounted(async () => {
   <div class="flex h-screen bg-background text-foreground transition-colors duration-200">
     <!-- Sidebar -->
     <aside class="w-64 bg-card border-r border-border flex flex-col transition-colors duration-200">
-      <div class="h-16 flex items-center px-6 border-b border-border">
-        <h1 class="text-xl font-bold text-primary flex items-center gap-2">
-          <Icons.Wallet class="w-6 h-6" />
+      <div class="h-14 flex items-center px-6 border-b border-border bg-muted/30">
+        <h1 class="text-lg font-bold text-primary flex items-center gap-2">
+          <Icons.Wallet class="w-5 h-5" />
           Expense Tracker
         </h1>
       </div>
+      
+      <AccountSwitcher />
+
       <nav class="flex-1 py-4 px-3 space-y-1">
         <router-link 
           to="/" 

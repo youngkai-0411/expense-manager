@@ -5,13 +5,18 @@ import { eq } from 'drizzle-orm'
 import fs from 'node:fs'
 import ExcelJS from 'exceljs'
 import dayjs from 'dayjs'
+import { AccountService } from '../services/AccountService'
 
 export function setupDataHandlers() {
+  const accountService = new AccountService()
   
   // ==================== CSV EXPORT ====================
 
   ipcMain.handle('data:exportTransactionsCsv', async () => {
     try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) throw new Error('No active account')
+
       const db = getConnection()
       const data = db.select({
         date: transactions.transactionDate,
@@ -22,6 +27,7 @@ export function setupDataHandlers() {
       })
       .from(transactions)
       .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(eq(transactions.accountId, accountId))
       .all()
 
       const { canceled, filePath } = await dialog.showSaveDialog({
@@ -53,8 +59,11 @@ export function setupDataHandlers() {
 
   ipcMain.handle('data:exportCategoriesCsv', async () => {
     try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) throw new Error('No active account')
+
       const db = getConnection()
-      const data = db.select().from(categories).all()
+      const data = db.select().from(categories).where(eq(categories.accountId, accountId)).all()
 
       const { canceled, filePath } = await dialog.showSaveDialog({
         title: 'Export Categories as CSV',
@@ -84,6 +93,9 @@ export function setupDataHandlers() {
 
   ipcMain.handle('data:exportTransactionsExcel', async () => {
     try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) throw new Error('No active account')
+
       const db = getConnection()
       const data = db.select({
         date: transactions.transactionDate,
@@ -94,6 +106,7 @@ export function setupDataHandlers() {
       })
       .from(transactions)
       .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(eq(transactions.accountId, accountId))
       .all()
 
       const { canceled, filePath } = await dialog.showSaveDialog({

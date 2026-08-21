@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { getConnection } from '../database/connection'
 import { transactions } from '../database/schema/transactions'
 import { SourceRepository } from '../repositories/SourceRepository'
+import { AccountService } from '../services/AccountService'
 import type { NewSource } from '../database/schema/sources'
 
 export class SourceService {
@@ -11,17 +12,23 @@ export class SourceService {
     this.repository = new SourceRepository()
   }
 
+  private accountService = new AccountService()
+
   async createSource(data: NewSource) {
     if (!data.name || data.name.trim() === '') {
       throw new Error('Source name is required.')
     }
     data.name = data.name.trim()
     
+    const accountId = await this.accountService.getCurrentAccountId()
+    if (!accountId) throw new Error('No active account')
+    data.accountId = accountId
+
     // Check duplicate
-    const allSources = await this.repository.findAll()
+    const allSources = await this.repository.findAllByAccount(accountId)
     const duplicate = allSources.find(s => s.name.toLowerCase() === data.name.toLowerCase())
     if (duplicate) {
-      throw new Error(`Source "${data.name}" already exists.`)
+      throw new Error(`Source "${data.name}" already exists in this account.`)
     }
 
     return this.repository.create(data)
@@ -33,11 +40,13 @@ export class SourceService {
         throw new Error('Source name cannot be empty.')
       }
       data.name = data.name.trim()
-      
-      const allSources = await this.repository.findAll()
+      const accountId = await this.accountService.getCurrentAccountId()
+      if (!accountId) throw new Error('No active account')
+
+      const allSources = await this.repository.findAllByAccount(accountId)
       const duplicate = allSources.find(s => s.id !== id && s.name.toLowerCase() === data.name!.toLowerCase())
       if (duplicate) {
-        throw new Error(`Source "${data.name}" already exists.`)
+        throw new Error(`Source "${data.name}" already exists in this account.`)
       }
     }
     return this.repository.update(id, data)
@@ -62,7 +71,9 @@ export class SourceService {
   }
 
   async getAllSources() {
-    return this.repository.findAll()
+    const accountId = await this.accountService.getCurrentAccountId()
+    if (!accountId) return []
+    return this.repository.findAllByAccount(accountId)
   }
 
   async getSourceById(id: number) {

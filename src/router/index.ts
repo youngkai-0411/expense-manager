@@ -12,6 +12,11 @@ const routes = [
     component: () => import('@/features/transactions/pages/TransactionPage.vue')
   },
   {
+    path: '/accounts',
+    name: 'Accounts',
+    component: () => import('@/features/accounts/pages/AccountPage.vue')
+  },
+  {
     path: '/categories',
     name: 'Categories',
     component: () => import('@/features/categories/pages/CategoryPage.vue')

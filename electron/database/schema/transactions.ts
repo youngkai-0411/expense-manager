@@ -2,12 +2,17 @@ import { sql } from 'drizzle-orm'
 import { check, index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { categories } from './categories'
 import { sources } from './sources'
+import { accounts } from './accounts'
 import { CATEGORY_TYPES } from '../constants/enums'
 
 export const transactions = sqliteTable(
   'transactions',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
+    accountId: integer('account_id')
+      .notNull()
+      .default(1)
+      .references(() => accounts.id, { onDelete: 'cascade' }),
     categoryId: integer('category_id')
       .notNull()
       .references(() => categories.id, { onDelete: 'restrict' }),
