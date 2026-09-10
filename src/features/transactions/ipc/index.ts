@@ -6,5 +6,5 @@ export const transactionApi = {
   update: (id: number, data: Omit<UpdateTransactionPayload, 'id'>): Promise<Transaction> => window.ipcRenderer.invoke('transaction:update', id, data),
   updateStatus: (id: number, status: string): Promise<Transaction> => window.ipcRenderer.invoke('transaction:updateStatus', id, status),
   getPendingSummary: (): Promise<{ pendingIncome: number, pendingExpense: number }> => window.ipcRenderer.invoke('transaction:getPendingSummary'),
-  archive: (id: number): Promise<Transaction> => window.ipcRenderer.invoke('transaction:archive', id),
+  delete: (id: number): Promise<Transaction> => window.ipcRenderer.invoke('transaction:delete', id),
 }

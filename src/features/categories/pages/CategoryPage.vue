@@ -21,9 +21,9 @@ const openEditDialog = (id: number) => {
   dialogOpen.value = true
 }
 
-const confirmArchive = async (id: number) => {
-  if (confirm('Are you sure you want to archive this category?')) {
-    await store.archiveCategory(id)
+const confirmDelete = async (id: number) => {
+  if (confirm('Are you sure you want to permanently delete this category?')) {
+    await store.deleteCategory(id)
   }
 }
 
@@ -105,8 +105,8 @@ onMounted(() => {
                 <Button variant="ghost" size="icon" @click="openEditDialog(category.id)" title="Edit">
                   <Icons.Pencil class="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="icon" class="text-destructive hover:text-destructive" @click="confirmArchive(category.id)" title="Archive">
-                  <Icons.Archive class="w-4 h-4" />
+                <Button variant="ghost" size="icon" class="text-destructive hover:text-destructive" @click="confirmDelete(category.id)" title="Delete">
+                  <Icons.Trash2 class="w-4 h-4" />
                 </Button>
               </div>
             </td>

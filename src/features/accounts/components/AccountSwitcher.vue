@@ -73,7 +73,7 @@ const handleOpenChange = (val: boolean) => {
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
           <div 
-            v-for="acc in store.activeAccounts" 
+            v-for="acc in store.accounts" 
             :key="acc.id" 
             class="bg-card rounded-xl border shadow-sm cursor-pointer transition-all hover:border-primary/50 relative group p-4"
             :class="{ 'border-primary ring-1 ring-primary': acc.id === store.currentAccountId }"

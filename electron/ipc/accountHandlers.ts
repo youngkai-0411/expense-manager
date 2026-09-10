@@ -21,13 +21,7 @@ export function setupAccountHandlers() {
     return accountService.update(id, data)
   })
 
-  ipcMain.handle('account:archive', async (_event, id: number) => {
-    return accountService.archive(id)
-  })
 
-  ipcMain.handle('account:restore', async (_event, id: number) => {
-    return accountService.restore(id)
-  })
 
   ipcMain.handle('account:delete', async (_event, id: number) => {
     return accountService.delete(id)

@@ -153,9 +153,9 @@ export const useTransactionStore = defineStore('transaction', () => {
     }
   }
 
-  const archiveTransaction = async (id: number) => {
+  const deleteTransaction = async (id: number) => {
     try {
-      await transactionApi.archive(id)
+      await transactionApi.delete(id)
       transactions.value = transactions.value.filter(t => t.id !== id)
       toast.success('Transaction deleted')
     } catch (e: any) {
@@ -183,6 +183,6 @@ export const useTransactionStore = defineStore('transaction', () => {
     createTransaction,
     updateTransaction,
     updateStatus,
-    archiveTransaction
+    deleteTransaction
   }
 })

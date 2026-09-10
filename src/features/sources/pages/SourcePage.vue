@@ -21,17 +21,7 @@ const openEditDialog = (id: number) => {
   dialogOpen.value = true
 }
 
-const confirmArchive = async (id: number) => {
-  if (confirm('Are you sure you want to archive this source?')) {
-    await store.archiveSource(id)
-  }
-}
 
-const confirmRestore = async (id: number) => {
-  if (confirm('Are you sure you want to restore this source?')) {
-    await store.restoreSource(id)
-  }
-}
 
 const confirmDelete = async (id: number) => {
   if (confirm('Are you sure you want to permanently delete this source? This action cannot be undone.')) {
@@ -69,14 +59,6 @@ onMounted(() => {
           class="pl-9"
         />
       </div>
-      <select 
-        v-model="store.statusFilter"
-        class="flex h-10 w-48 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        <option value="All">All Status</option>
-        <option value="Active">Active</option>
-        <option value="Archived">Archived</option>
-      </select>
     </div>
 
     <!-- Content -->
@@ -101,7 +83,6 @@ onMounted(() => {
           <tr>
             <th class="px-4 py-3 font-medium">Name</th>
             <th class="px-4 py-3 font-medium">Description</th>
-            <th class="px-4 py-3 font-medium">Status</th>
             <th class="px-4 py-3 font-medium text-right">Actions</th>
           </tr>
         </thead>
@@ -110,26 +91,16 @@ onMounted(() => {
             v-for="source in store.filteredSources" 
             :key="source.id"
             class="hover:bg-muted/50 transition-colors group"
-            :class="{ 'opacity-60': !source.isActive }"
           >
             <td class="px-4 py-3">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-full flex items-center justify-center bg-primary/10 text-primary">
                   <Icons.Building2 class="w-4 h-4" />
-                </div>
-                <span class="font-medium" :class="{'line-through': !source.isActive}">{{ source.name }}</span>
+                </div>                <span class="font-medium">{{ source.name }}</span>
               </div>
             </td>
             <td class="px-4 py-3 text-muted-foreground">
               {{ source.description || '-' }}
-            </td>
-            <td class="px-4 py-3">
-              <span 
-                class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                :class="source.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-muted text-muted-foreground'"
-              >
-                {{ source.isActive ? 'Active' : 'Archived' }}
-              </span>
             </td>
             <td class="px-4 py-3 text-right">
               <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -137,19 +108,9 @@ onMounted(() => {
                   <Icons.Pencil class="w-4 h-4" />
                 </Button>
                 
-                <template v-if="source.isActive">
-                  <Button variant="ghost" size="icon" class="text-amber-600 hover:text-amber-700 hover:bg-amber-100/50" @click="confirmArchive(source.id)" title="Archive">
-                    <Icons.Archive class="w-4 h-4" />
-                  </Button>
-                </template>
-                <template v-else>
-                  <Button variant="ghost" size="icon" class="text-green-600 hover:text-green-700 hover:bg-green-100/50" @click="confirmRestore(source.id)" title="Restore">
-                    <Icons.ArchiveRestore class="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" class="text-destructive hover:text-destructive hover:bg-destructive/10" @click="confirmDelete(source.id)" title="Delete Permanently">
-                    <Icons.Trash2 class="w-4 h-4" />
-                  </Button>
-                </template>
+                <Button variant="ghost" size="icon" class="text-destructive hover:text-destructive hover:bg-destructive/10" @click="confirmDelete(source.id)" title="Delete">
+                  <Icons.Trash2 class="w-4 h-4" />
+                </Button>
               </div>
             </td>
           </tr>

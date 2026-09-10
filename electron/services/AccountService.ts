@@ -1,9 +1,8 @@
 import { AccountRepository } from '../repositories/AccountRepository'
 import type { NewAccount } from '../database/schema'
 import { getConnection } from '../database'
-import { sql, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { settings } from '../database/schema/settings'
-import { transactions } from '../database/schema/transactions'
 
 export class AccountService {
   private repository = new AccountRepository()
@@ -46,41 +45,12 @@ export class AccountService {
     return this.repository.update(id, data)
   }
 
-  async archive(id: number) {
-    const currentId = await this.getCurrentAccountId()
-    if (currentId === id) throw new Error('Cannot archive the currently active account')
-    
-    const account = await this.getById(id)
-    if (account?.isDefault) throw new Error('Cannot archive the default account')
-    
-    return this.repository.update(id, { isActive: false })
-  }
-
-  async restore(id: number) {
-    return this.repository.update(id, { isActive: true })
-  }
-
   async delete(id: number) {
     const currentId = await this.getCurrentAccountId()
     if (currentId === id) throw new Error('Cannot delete the currently active account')
     
     const account = await this.getById(id)
     if (account?.isDefault) throw new Error('Cannot delete the default account')
-
-    // Normally we should check if there are transactions.
-    // Drizzle ORM doesn't easily return counts without specific queries.
-    // Assuming UI handles the check or we just let DB cascade delete.
-    // The requirement says "Delete chỉ khi Account chưa có dữ liệu. Nếu đã có Transaction thì chỉ được Archive."
-    // Let's enforce this by checking transactions table.
-    const db = getConnection()
-    const txCount = db.select({ c: sql<number>`COUNT(*)` })
-      .from(transactions)
-      .where(eq(transactions.accountId, id))
-      .get()
-    
-    if (txCount && txCount.c > 0) {
-      throw new Error('Cannot delete account with existing transactions. Please archive it instead.')
-    }
 
     return this.repository.delete(id)
   }

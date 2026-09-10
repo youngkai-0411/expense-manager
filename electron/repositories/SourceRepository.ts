@@ -18,25 +18,7 @@ export class SourceRepository {
       .get()
   }
 
-  async archive(id: number) {
-    const db = getConnection()
-    return db
-      .update(sources)
-      .set({ isActive: false, updatedAt: new Date().toISOString() })
-      .where(eq(sources.id, id))
-      .returning()
-      .get()
-  }
 
-  async restore(id: number) {
-    const db = getConnection()
-    return db
-      .update(sources)
-      .set({ isActive: true, updatedAt: new Date().toISOString() })
-      .where(eq(sources.id, id))
-      .returning()
-      .get()
-  }
 
   async delete(id: number) {
     const db = getConnection()

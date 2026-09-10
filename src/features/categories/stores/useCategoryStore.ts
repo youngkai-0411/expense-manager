@@ -13,7 +13,7 @@ export const useCategoryStore = defineStore('category', () => {
   const searchQuery = ref('')
 
   // Computed
-  const activeCategories = computed(() => categories.value.filter(c => !c.isArchived))
+  const activeCategories = computed(() => categories.value)
   
   const filteredCategories = computed(() => {
     let result = activeCategories.value
@@ -88,16 +88,13 @@ export const useCategoryStore = defineStore('category', () => {
     }
   }
 
-  const archiveCategory = async (id: number) => {
+  const deleteCategory = async (id: number) => {
     try {
-      const archivedCat = await categoryApi.archive(id)
-      const index = categories.value.findIndex(c => c.id === id)
-      if (index !== -1) {
-        categories.value[index] = archivedCat
-      }
-      toast.success('Category archived')
+      await categoryApi.delete(id)
+      categories.value = categories.value.filter(c => c.id !== id)
+      toast.success('Category deleted')
     } catch (e: any) {
-      const msg = e.message || 'Failed to archive category'
+      const msg = e.message || 'Failed to delete category'
       toast.error(msg)
       throw new Error(msg)
     }
@@ -112,6 +109,6 @@ export const useCategoryStore = defineStore('category', () => {
     loadCategories,
     createCategory,
     updateCategory,
-    archiveCategory
+    deleteCategory
   }
 })

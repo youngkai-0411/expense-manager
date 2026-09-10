@@ -8,7 +8,6 @@ export const useAccountStore = defineStore('account', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const activeAccounts = computed(() => accounts.value.filter(a => a.isActive))
   const defaultAccount = computed(() => accounts.value.find(a => a.isDefault))
   const currentAccountName = computed(() => {
     const acc = accounts.value.find(a => a.id === currentAccountId.value)
@@ -47,32 +46,6 @@ export const useAccountStore = defineStore('account', () => {
     loading.value = true
     try {
       await window.ipcRenderer.invoke('account:update', id, data)
-      await loadAccounts()
-    } catch (err: any) {
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function archiveAccount(id: number) {
-    loading.value = true
-    try {
-      await window.ipcRenderer.invoke('account:archive', id)
-      await loadAccounts()
-    } catch (err: any) {
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function restoreAccount(id: number) {
-    loading.value = true
-    try {
-      await window.ipcRenderer.invoke('account:restore', id)
       await loadAccounts()
     } catch (err: any) {
       error.value = err.message
@@ -127,15 +100,12 @@ export const useAccountStore = defineStore('account', () => {
     currentAccountId,
     loading,
     error,
-    activeAccounts,
     defaultAccount,
     currentAccountName,
     currentAccount,
     loadAccounts,
     createAccount,
     updateAccount,
-    archiveAccount,
-    restoreAccount,
     deleteAccount,
     setDefaultAccount,
     switchAccount

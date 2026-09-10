@@ -36,9 +36,9 @@ const openDetailDialog = (id: number) => {
   detailDialogOpen.value = true
 }
 
-const confirmArchive = async (id: number) => {
+const confirmDelete = async (id: number) => {
   if (confirm('Are you sure you want to delete this transaction?')) {
-    await store.archiveTransaction(id)
+    await store.deleteTransaction(id)
   }
 }
 
@@ -245,7 +245,7 @@ onMounted(async () => {
                   <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground" @click="openEditDialog(tx.id)" title="Edit">
                     <Icons.Pencil class="w-4 h-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:bg-destructive/10" @click="confirmArchive(tx.id)" title="Delete">
+                  <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:bg-destructive/10" @click="confirmDelete(tx.id)" title="Delete">
                     <Icons.Trash2 class="w-4 h-4" />
                   </Button>
                 </div>

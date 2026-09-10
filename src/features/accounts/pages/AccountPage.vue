@@ -26,25 +26,9 @@ const openEdit = (account: any) => {
   dialogOpen.value = true
 }
 
-const handleArchive = async (id: number) => {
-  try {
-    await store.archiveAccount(id)
-    toast.success('Workspace archived.')
-  } catch (e: any) {
-    toast.error(e.message)
-  }
-}
-
-const handleRestore = async (id: number) => {
-  try {
-    await store.restoreAccount(id)
-    toast.success('Workspace restored.')
-  } catch (e: any) {
-    toast.error(e.message)
-  }
-}
 
 const handleDelete = async (id: number) => {
+  if (!confirm('Are you sure you want to permanently delete this account? WARNING: All associated transactions will also be deleted!')) return;
   try {
     await store.deleteAccount(id)
     toast.success('Workspace permanently deleted.')
@@ -77,7 +61,7 @@ const handleSetDefault = async (id: number) => {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      <div v-for="acc in store.accounts" :key="acc.id" class="flex flex-col relative bg-card rounded-xl border shadow-sm p-6" :class="{ 'opacity-60': !acc.isActive }">
+      <div v-for="acc in store.accounts" :key="acc.id" class="flex flex-col relative bg-card rounded-xl border shadow-sm p-6">
         <div v-if="acc.isDefault" class="absolute -top-3 -right-3">
           <div class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground shadow-sm">Default</div>
         </div>
@@ -94,16 +78,10 @@ const handleSetDefault = async (id: number) => {
             <Button v-if="!acc.isDefault" variant="ghost" size="icon" class="h-8 w-8" @click="handleSetDefault(acc.id)" title="Set Default">
               <Icons.Star class="w-4 h-4" />
             </Button>
-            <Button v-if="acc.isActive && !acc.isDefault && acc.id !== store.currentAccountId" variant="ghost" size="icon" class="h-8 w-8" @click="handleArchive(acc.id)" title="Archive">
-              <Icons.Archive class="w-4 h-4" />
-            </Button>
-            <Button v-if="!acc.isActive" variant="ghost" size="icon" class="h-8 w-8" @click="handleRestore(acc.id)" title="Restore">
-              <Icons.RefreshCw class="w-4 h-4" />
-            </Button>
             <Button 
-              v-if="!acc.isActive || (acc.id !== store.currentAccountId && !acc.isDefault)" 
-              variant="ghost" size="icon" class="h-8 w-8 text-red-500 hover:text-red-600"
-              @click="handleDelete(acc.id)" title="Delete"
+              v-if="acc.id !== store.currentAccountId && !acc.isDefault" 
+              variant="ghost" size="icon" class="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+              @click="handleDelete(acc.id)" title="Delete Permanently"
             >
               <Icons.Trash class="w-4 h-4" />
             </Button>
@@ -122,10 +100,6 @@ const handleSetDefault = async (id: number) => {
             <div class="flex items-center gap-2">
               <Icons.Calendar class="w-4 h-4" />
               Created {{ dayjs(acc.createdAt).format('MMM D, YYYY') }}
-            </div>
-            <div class="flex items-center gap-2">
-              <Icons.Activity class="w-4 h-4" />
-              {{ acc.isActive ? 'Active Workspace' : 'Archived Workspace' }}
             </div>
           </div>
         </div>

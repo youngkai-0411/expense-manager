@@ -41,23 +41,7 @@ export function setupSourceHandlers() {
     }
   })
 
-  ipcMain.handle('source:archive', async (_event, id: number) => {
-    try {
-      return await service.archiveSource(id)
-    } catch (error) {
-      console.error('Error archiving source:', error)
-      throw error
-    }
-  })
 
-  ipcMain.handle('source:restore', async (_event, id: number) => {
-    try {
-      return await service.restoreSource(id)
-    } catch (error) {
-      console.error('Error restoring source:', error)
-      throw error
-    }
-  })
 
   ipcMain.handle('source:delete', async (_event, id: number) => {
     try {

@@ -1,6 +1,3 @@
-import { eq } from 'drizzle-orm'
-import { getConnection } from '../database/connection'
-import { transactions } from '../database/schema/transactions'
 import { SourceRepository } from '../repositories/SourceRepository'
 import { AccountService } from '../services/AccountService'
 import type { NewSource } from '../database/schema/sources'
@@ -52,21 +49,7 @@ export class SourceService {
     return this.repository.update(id, data)
   }
 
-  async archiveSource(id: number) {
-    return this.repository.archive(id)
-  }
-
-  async restoreSource(id: number) {
-    return this.repository.restore(id)
-  }
-
   async deleteSource(id: number) {
-    const db = getConnection()
-    // Check if source is used in any transactions
-    const usedTransactions = db.select().from(transactions).where(eq(transactions.sourceId, id)).all()
-    if (usedTransactions.length > 0) {
-      throw new Error('This source is already used by one or more transactions and cannot be permanently deleted.')
-    }
     return this.repository.delete(id)
   }
 

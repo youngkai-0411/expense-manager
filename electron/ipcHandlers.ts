@@ -63,18 +63,20 @@ export function setupIpcHandlers() {
     }
   })
 
-  ipcMain.handle('category:archive', async (_event, id: number) => {
+  ipcMain.handle('category:delete', async (_event, id: number) => {
     try {
       const db = getConnection()
       const result = db
-        .update(categories)
-        .set({ isArchived: true, updatedAt: new Date().toISOString() })
+        .delete(categories)
         .where(eq(categories.id, id))
         .returning()
         .get()
       return result
-    } catch (error) {
-      console.error('Error archiving category:', error)
+    } catch (error: any) {
+      console.error('Error deleting category:', error)
+      if (error?.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+        throw new Error('Cannot delete category: It is currently used by one or more transactions.')
+      }
       throw error
     }
   })
@@ -150,10 +152,9 @@ export function setupIpcHandlers() {
     }
   })
 
-  ipcMain.handle('transaction:archive', async (_event, id: number) => {
+  ipcMain.handle('transaction:delete', async (_event, id: number) => {
     try {
       const db = getConnection()
-      // Schema lacks isArchived, so we delete it
       const result = db.delete(transactions).where(eq(transactions.id, id)).returning().get()
       return result
     } catch (error) {
