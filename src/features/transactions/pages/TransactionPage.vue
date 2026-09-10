@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useTransactionStore } from '../stores/useTransactionStore'
 import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
 import { useSourceStore } from '@/features/sources/stores/useSourceStore'
@@ -11,6 +11,24 @@ import Input from '@/components/ui/input/Input.vue'
 import * as Icons from '@lucide/vue'
 import dayjs from 'dayjs'
 import { toast } from 'vue-sonner'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const store = useTransactionStore()
 const categoryStore = useCategoryStore()
@@ -20,6 +38,8 @@ const settingsStore = useSettingsStore()
 const dialogOpen = ref(false)
 const detailDialogOpen = ref(false)
 const selectedTransactionId = ref<number | null>(null)
+const deleteDialogOpen = ref(false)
+const transactionToDelete = ref<number | null>(null)
 
 const openCreateDialog = () => {
   selectedTransactionId.value = null
@@ -36,9 +56,16 @@ const openDetailDialog = (id: number) => {
   detailDialogOpen.value = true
 }
 
-const confirmDelete = async (id: number) => {
-  if (confirm('Are you sure you want to delete this transaction?')) {
-    await store.deleteTransaction(id)
+const confirmDelete = (id: number) => {
+  transactionToDelete.value = id
+  deleteDialogOpen.value = true
+}
+
+const executeDelete = async () => {
+  if (transactionToDelete.value) {
+    await store.deleteTransaction(transactionToDelete.value)
+    deleteDialogOpen.value = false
+    transactionToDelete.value = null
   }
 }
 
@@ -58,6 +85,16 @@ const getIconComponent = (iconName?: string | null) => {
   if (!iconName) return Icons.CircleDollarSign
   return (Icons as Record<string, any>)[iconName] || Icons.CircleDollarSign
 }
+
+const categoryIdFilter = computed({
+  get: () => store.categoryFilter === 'All' ? 'All' : store.categoryFilter.toString(),
+  set: (val: any) => store.categoryFilter = val === 'All' ? 'All' : parseInt(val)
+})
+
+const sourceIdFilter = computed({
+  get: () => store.sourceFilter === 'All' ? 'All' : store.sourceFilter.toString(),
+  set: (val: any) => store.sourceFilter = val === 'All' ? 'All' : parseInt(val)
+})
 
 onMounted(async () => {
   await Promise.all([
@@ -80,7 +117,7 @@ onMounted(async () => {
     </div>
 
     <!-- Toolbar Filters -->
-    <div class="flex flex-wrap items-center gap-3 bg-card p-3 rounded-lg border shadow-sm">
+    <div class="flex flex-wrap md:flex-nowrap items-center gap-3 bg-card p-3 rounded-lg border shadow-sm">
       <div class="relative flex-1 min-w-[200px]">
         <Icons.Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input 
@@ -90,52 +127,62 @@ onMounted(async () => {
         />
       </div>
       
-      <select 
-        v-model="store.typeFilter"
-        class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <option value="All">All Types</option>
-        <option value="Income">Income</option>
-        <option value="Expense">Expense</option>
-      </select>
+      <Select v-model="store.typeFilter">
+        <SelectTrigger class="h-9 w-[130px] flex-shrink-0">
+          <SelectValue placeholder="Type" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="All">All Types</SelectItem>
+          <SelectItem value="Income">Income</SelectItem>
+          <SelectItem value="Expense">Expense</SelectItem>
+        </SelectContent>
+      </Select>
 
-      <select 
-        v-model="store.statusFilter"
-        class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <option value="All">All Status</option>
-        <option value="Completed">Completed</option>
-        <option value="Pending">Pending</option>
-        <option value="Cancelled">Cancelled</option>
-      </select>
+      <Select v-model="store.statusFilter">
+        <SelectTrigger class="h-9 w-[130px] flex-shrink-0">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="All">All Status</SelectItem>
+          <SelectItem value="Completed">Completed</SelectItem>
+          <SelectItem value="Pending">Pending</SelectItem>
+          <SelectItem value="Cancelled">Cancelled</SelectItem>
+        </SelectContent>
+      </Select>
 
-      <select 
-        v-model="store.categoryFilter"
-        class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <option value="All">All Categories</option>
-        <option v-for="c in categoryStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-      </select>
+      <Select v-model="categoryIdFilter">
+        <SelectTrigger class="h-9 w-[150px] flex-shrink-0">
+          <SelectValue placeholder="Category" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="All">All Categories</SelectItem>
+          <SelectItem v-for="c in categoryStore.categories" :key="c.id" :value="c.id.toString()">{{ c.name }}</SelectItem>
+        </SelectContent>
+      </Select>
 
-      <select 
-        v-model="store.sourceFilter"
-        class="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <option value="All">All Sources</option>
-        <option v-for="s in sourceStore.sources" :key="s.id" :value="s.id">{{ s.name }}</option>
-      </select>
+      <Select v-model="sourceIdFilter">
+        <SelectTrigger class="h-9 w-[150px] flex-shrink-0">
+          <SelectValue placeholder="Source" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="All">All Sources</SelectItem>
+          <SelectItem v-for="s in sourceStore.sources" :key="s.id" :value="s.id.toString()">{{ s.name }}</SelectItem>
+        </SelectContent>
+      </Select>
       
-      <div class="ml-auto flex items-center gap-2">
-        <select 
-          v-model="store.sortBy"
-          class="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="transactionDate">Date</option>
-          <option value="amount">Amount</option>
-          <option value="category">Category</option>
-          <option value="source">Source</option>
-          <option value="createdAt">Created</option>
-        </select>
+      <div class="ml-auto flex items-center gap-2 flex-shrink-0">
+        <Select v-model="store.sortBy">
+          <SelectTrigger class="h-9 w-[130px]">
+            <SelectValue placeholder="Sort By" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="transactionDate">Date</SelectItem>
+            <SelectItem value="amount">Amount</SelectItem>
+            <SelectItem value="category">Category</SelectItem>
+            <SelectItem value="source">Source</SelectItem>
+            <SelectItem value="createdAt">Created</SelectItem>
+          </SelectContent>
+        </Select>
         <Button variant="ghost" size="icon" @click="store.sortDirection = store.sortDirection === 'desc' ? 'asc' : 'desc'" class="h-9 w-9 border" title="Toggle Sort Direction">
           <Icons.ArrowUpDown class="w-4 h-4" />
         </Button>
@@ -144,19 +191,34 @@ onMounted(async () => {
 
     <!-- Timeline Content -->
     <div class="space-y-8">
-      <div v-if="store.isLoading" class="p-12 text-center text-muted-foreground border rounded-lg bg-card">
-        Loading transactions...
+      <div v-if="store.isLoading" class="space-y-6">
+        <div v-for="i in 3" :key="i" class="space-y-4">
+          <Skeleton class="h-5 w-32" />
+          <div class="bg-card rounded-xl border shadow-sm divide-y">
+            <div v-for="j in 2" :key="j" class="p-4 flex items-center gap-4">
+              <Skeleton class="w-10 h-10 rounded-full shrink-0" />
+              <div class="flex-1 space-y-2">
+                <Skeleton class="h-4 w-[200px]" />
+                <Skeleton class="h-3 w-[150px]" />
+              </div>
+              <Skeleton class="h-5 w-20 shrink-0" />
+            </div>
+          </div>
+        </div>
       </div>
       
-      <div v-else-if="store.groupedTransactions.length === 0" class="p-16 text-center border rounded-lg bg-card shadow-sm">
-        <div class="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-          <Icons.ReceiptText class="w-6 h-6 text-muted-foreground" />
+      <div v-else-if="store.groupedTransactions.length === 0" class="p-16 text-center border-2 border-dashed rounded-xl bg-card shadow-sm">
+        <div class="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Icons.ReceiptText class="w-8 h-8 text-muted-foreground/50" />
         </div>
         <h3 class="text-lg font-medium">No transactions found</h3>
-        <p class="text-sm text-muted-foreground mt-1 mb-4">
+        <p class="text-sm text-muted-foreground mt-1 mb-6">
           Try adjusting your filters or create a new transaction.
         </p>
-        <Button variant="outline" @click="openCreateDialog">Create Transaction</Button>
+        <Button @click="openCreateDialog">
+          <Icons.Plus class="w-4 h-4 mr-2" />
+          Create Transaction
+        </Button>
       </div>
 
       <template v-else>
@@ -265,5 +327,20 @@ onMounted(async () => {
       v-model:open="detailDialogOpen" 
       :transaction-id="selectedTransactionId"
     />
+
+    <AlertDialog :open="deleteDialogOpen" @update:open="deleteDialogOpen = $event">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete this transaction.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="deleteDialogOpen = false; transactionToDelete = null">Cancel</AlertDialogCancel>
+          <AlertDialogAction @click="executeDelete" class="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>

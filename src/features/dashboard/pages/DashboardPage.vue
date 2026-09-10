@@ -17,6 +17,13 @@ import { Doughnut, Bar } from 'vue-chartjs'
 import { 
   Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title 
 } from 'chart.js'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { CategoryReportItem, SourceReportItem } from '../types'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
@@ -145,6 +152,16 @@ const sortedSourceReport = computed(() => {
   if (srcSort.value === 'count') return [...store.sourceReport].sort((a, b) => b.transactionCount - a.transactionCount)
   return [...store.sourceReport].sort((a, b) => b.balance - a.balance)
 })
+
+const categoryIdFilter = computed({
+  get: () => store.filters.categoryId === 'All' ? 'All' : store.filters.categoryId?.toString() || 'All',
+  set: (val: any) => store.filters.categoryId = val === 'All' ? 'All' : parseInt(val)
+})
+
+const sourceIdFilter = computed({
+  get: () => store.filters.sourceId === 'All' ? 'All' : store.filters.sourceId?.toString() || 'All',
+  set: (val: any) => store.filters.sourceId = val === 'All' ? 'All' : parseInt(val)
+})
 </script>
 
 <template>
@@ -166,28 +183,48 @@ const sortedSourceReport = computed(() => {
           <Input type="date" v-model="store.filters.endDate" class="h-9 w-36" title="End Date" />
         </div>
         
-        <select v-model="store.filters.categoryId" class="h-9 w-36 rounded-md border border-input bg-background px-3 py-1 text-sm">
-          <option value="All">All Categories</option>
-          <option v-for="c in categoryStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
+        <Select v-model="categoryIdFilter">
+          <SelectTrigger class="h-9 w-36">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Categories</SelectItem>
+            <SelectItem v-for="c in categoryStore.categories" :key="c.id" :value="c.id.toString()">{{ c.name }}</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <select v-model="store.filters.sourceId" class="h-9 w-36 rounded-md border border-input bg-background px-3 py-1 text-sm">
-          <option value="All">All Sources</option>
-          <option v-for="s in sourceStore.sources" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
+        <Select v-model="sourceIdFilter">
+          <SelectTrigger class="h-9 w-36">
+            <SelectValue placeholder="Source" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Sources</SelectItem>
+            <SelectItem v-for="s in sourceStore.sources" :key="s.id" :value="s.id.toString()">{{ s.name }}</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <select v-model="store.filters.type" class="h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm">
-          <option value="All">All Types</option>
-          <option value="Income">Income</option>
-          <option value="Expense">Expense</option>
-        </select>
+        <Select v-model="store.filters.type">
+          <SelectTrigger class="h-9 w-32">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Types</SelectItem>
+            <SelectItem value="Income">Income</SelectItem>
+            <SelectItem value="Expense">Expense</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <select v-model="store.filters.status" class="h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm">
-          <option value="All">All Status</option>
-          <option value="Completed">Completed</option>
-          <option value="Pending">Pending</option>
-          <option value="Cancelled">Cancelled</option>
-        </select>
+        <Select v-model="store.filters.status">
+          <SelectTrigger class="h-9 w-32">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Status</SelectItem>
+            <SelectItem value="Completed">Completed</SelectItem>
+            <SelectItem value="Pending">Pending</SelectItem>
+            <SelectItem value="Cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
         
         <div v-if="store.isLoading" class="ml-auto text-sm text-muted-foreground flex items-center gap-2">
           <Icons.Loader2 class="w-4 h-4 animate-spin" />
@@ -203,7 +240,7 @@ const sortedSourceReport = computed(() => {
           <h3 class="tracking-tight text-sm font-medium">Total Income</h3>
           <Icons.ArrowDownLeft class="h-4 w-4 text-green-500" />
         </div>
-        <div class="text-2xl font-bold text-green-600">{{ settingsStore.formatCurrency(store.summary?.totalIncome || 0) }}</div>
+        <div class="text-2xl font-bold font-mono tracking-tight text-green-600">{{ settingsStore.formatCurrency(store.summary?.totalIncome || 0) }}</div>
       </div>
 
       <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
@@ -211,33 +248,34 @@ const sortedSourceReport = computed(() => {
           <h3 class="tracking-tight text-sm font-medium">Total Expense</h3>
           <Icons.ArrowUpRight class="h-4 w-4 text-red-500" />
         </div>
-        <div class="text-2xl font-bold text-red-600">{{ settingsStore.formatCurrency(store.summary?.totalExpense || 0) }}</div>
+        <div class="text-2xl font-bold font-mono tracking-tight text-red-600">{{ settingsStore.formatCurrency(store.summary?.totalExpense || 0) }}</div>
       </div>
 
-      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+      <div class="rounded-xl border bg-primary text-primary-foreground shadow-sm p-6 col-span-1 md:col-span-2 xl:col-span-2">
         <div class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <h3 class="tracking-tight text-sm font-medium">Net Balance</h3>
-          <Icons.Wallet class="h-4 w-4 text-blue-500" />
+          <h3 class="tracking-tight text-sm font-medium opacity-90">Net Balance</h3>
+          <Icons.Wallet class="h-4 w-4" />
         </div>
-        <div class="text-2xl font-bold" :class="(store.summary?.netBalance || 0) >= 0 ? 'text-blue-600' : 'text-red-600'">
+        <div class="text-3xl font-bold font-mono tracking-tight">
           {{ settingsStore.formatCurrency(store.summary?.netBalance || 0) }}
         </div>
       </div>
 
-      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6 opacity-80">
+      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6 opacity-90">
         <div class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <h3 class="tracking-tight text-sm font-medium">Pending In</h3>
+          <h3 class="tracking-tight text-sm font-medium">Pending Tasks</h3>
           <Icons.Clock class="h-4 w-4 text-amber-500" />
         </div>
-        <div class="text-xl font-bold text-amber-600">{{ settingsStore.formatCurrency(store.summary?.pendingIncome || 0) }}</div>
-      </div>
-
-      <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6 opacity-80">
-        <div class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <h3 class="tracking-tight text-sm font-medium">Pending Out</h3>
-          <Icons.Clock class="h-4 w-4 text-amber-500" />
+        <div class="flex flex-col gap-1 mt-1">
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-muted-foreground">Incoming</span>
+            <span class="text-sm font-medium font-mono tracking-tight text-amber-600">+{{ settingsStore.formatCurrency(store.summary?.pendingIncome || 0) }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-muted-foreground">Outgoing</span>
+            <span class="text-sm font-medium font-mono tracking-tight text-amber-600">-{{ settingsStore.formatCurrency(store.summary?.pendingExpense || 0) }}</span>
+          </div>
         </div>
-        <div class="text-xl font-bold text-amber-600">{{ settingsStore.formatCurrency(store.summary?.pendingExpense || 0) }}</div>
       </div>
 
       <div class="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
@@ -324,14 +362,19 @@ const sortedSourceReport = computed(() => {
     <!-- Reports -->
     <div class="grid gap-6 md:grid-cols-2">
       <!-- Category Report -->
-      <div class="rounded-xl border bg-card shadow-sm flex flex-col h-[500px]">
+      <div class="rounded-xl border bg-card shadow-sm flex flex-col flex-1 min-h-[400px]">
         <div class="p-4 border-b flex justify-between items-center">
           <h3 class="font-semibold">Top Categories</h3>
-          <select v-model="catSort" class="h-8 rounded-md border text-xs px-2 bg-background">
-            <option value="expense">Sort by Expense</option>
-            <option value="income">Sort by Income</option>
-            <option value="balance">Sort by Balance</option>
-          </select>
+          <Select v-model="catSort">
+            <SelectTrigger class="h-8 w-40 text-xs">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="expense">Sort by Expense</SelectItem>
+              <SelectItem value="income">Sort by Income</SelectItem>
+              <SelectItem value="balance">Sort by Balance</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div class="flex-1 overflow-auto p-4 space-y-3">
           <div 
@@ -361,13 +404,18 @@ const sortedSourceReport = computed(() => {
       </div>
 
       <!-- Source Report -->
-      <div class="rounded-xl border bg-card shadow-sm flex flex-col h-[500px]">
+      <div class="rounded-xl border bg-card shadow-sm flex flex-col flex-1 min-h-[400px]">
         <div class="p-4 border-b flex justify-between items-center">
           <h3 class="font-semibold">Top Sources</h3>
-          <select v-model="srcSort" class="h-8 rounded-md border text-xs px-2 bg-background">
-            <option value="balance">Sort by Balance</option>
-            <option value="count">Sort by Tx Count</option>
-          </select>
+          <Select v-model="srcSort">
+            <SelectTrigger class="h-8 w-40 text-xs">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="balance">Sort by Balance</SelectItem>
+              <SelectItem value="count">Sort by Tx Count</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div class="flex-1 overflow-auto p-4 space-y-3">
           <div 

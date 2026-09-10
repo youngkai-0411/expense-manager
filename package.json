@@ -13,7 +13,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@lucide/vue": "^1.23.0",
+    "@lucide/vue": "^1.43.0",
     "@vee-validate/zod": "^4.15.1",
     "@vueuse/core": "^14.4.0",
     "better-sqlite3": "^12.11.1",
@@ -23,9 +23,10 @@
     "dayjs": "^1.11.21",
     "drizzle-orm": "^0.45.2",
     "exceljs": "^4.4.0",
+    "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
     "radix-vue": "^1.9.17",
-    "reka-ui": "^2.10.1",
+    "reka-ui": "^2.10.4",
     "tailwind-merge": "^3.6.0",
     "vee-validate": "^4.15.1",
     "vue": "^3.4.21",

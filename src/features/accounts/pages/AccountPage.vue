@@ -6,11 +6,23 @@ import { toast } from 'vue-sonner'
 import * as Icons from '@lucide/vue'
 import dayjs from 'dayjs'
 import AccountDialog from '../components/AccountDialog.vue'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const store = useAccountStore()
 
 const dialogOpen = ref(false)
 const editingAccount = ref<any>(null)
+const deleteDialogOpen = ref(false)
+const accountToDelete = ref<number | null>(null)
 
 onMounted(() => {
   store.loadAccounts()
@@ -26,14 +38,21 @@ const openEdit = (account: any) => {
   dialogOpen.value = true
 }
 
+const handleDelete = (id: number) => {
+  accountToDelete.value = id
+  deleteDialogOpen.value = true
+}
 
-const handleDelete = async (id: number) => {
-  if (!confirm('Are you sure you want to permanently delete this account? WARNING: All associated transactions will also be deleted!')) return;
-  try {
-    await store.deleteAccount(id)
-    toast.success('Workspace permanently deleted.')
-  } catch (e: any) {
-    toast.error(e.message)
+const executeDelete = async () => {
+  if (accountToDelete.value) {
+    try {
+      await store.deleteAccount(accountToDelete.value)
+      toast.success('Workspace permanently deleted.')
+    } catch (e: any) {
+      toast.error(e.message)
+    }
+    deleteDialogOpen.value = false
+    accountToDelete.value = null
   }
 }
 
@@ -107,5 +126,22 @@ const handleSetDefault = async (id: number) => {
     </div>
     
     <AccountDialog v-model:open="dialogOpen" :account="editingAccount" />
+
+    <AlertDialog :open="deleteDialogOpen" @update:open="deleteDialogOpen = $event">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to permanently delete this workspace? 
+            <br/><br/>
+            <strong class="text-destructive">WARNING: All associated categories, sources, and transactions will also be permanently deleted!</strong>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="deleteDialogOpen = false; accountToDelete = null">Cancel</AlertDialogCancel>
+          <AlertDialogAction @click="executeDelete" class="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete Workspace</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>

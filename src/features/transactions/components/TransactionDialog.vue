@@ -10,6 +10,13 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import Input from '@/components/ui/input/Input.vue'
 import Label from '@/components/ui/label/Label.vue'
 import Button from '@/components/ui/button/Button.vue'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { CreateTransactionPayload } from '../types'
 import dayjs from 'dayjs'
 
@@ -59,6 +66,16 @@ const { value: status } = useField<'Pending' | 'Completed'>('status')
 
 const activeCategories = computed(() => categoryStore.categories.filter(c => !c.isArchived))
 const activeSources = computed(() => sourceStore.sources.filter(s => s.isActive))
+
+const categoryIdStr = computed({
+  get: () => categoryId.value ? categoryId.value.toString() : undefined,
+  set: (val: any) => categoryId.value = val ? parseInt(val) : undefined as any
+})
+
+const sourceIdStr = computed({
+  get: () => sourceId.value ? sourceId.value.toString() : undefined,
+  set: (val: any) => sourceId.value = val ? parseInt(val) : undefined as any
+})
 
 watch(() => props.open, (isOpen) => {
   if (isOpen) {
@@ -136,33 +153,7 @@ const onSubmit = handleSubmit(async (values) => {
         </DialogDescription>
       </div>
       
-      <form @submit="onSubmit" class="space-y-4">
-        <div class="space-y-2">
-          <Label for="categoryId">Category</Label>
-          <select 
-            id="categoryId" 
-            v-model="categoryId"
-            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option disabled :value="undefined">Select Category</option>
-            <option v-for="c in activeCategories" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-          <p v-if="errors.categoryId" class="text-xs text-destructive">{{ errors.categoryId }}</p>
-        </div>
-
-        <div class="space-y-2">
-          <Label for="sourceId">Source</Label>
-          <select 
-            id="sourceId" 
-            v-model="sourceId"
-            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option disabled :value="undefined">Select Source</option>
-            <option v-for="s in activeSources" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
-          <p v-if="errors.sourceId" class="text-xs text-destructive">{{ errors.sourceId }}</p>
-        </div>
-
+      <form @submit.prevent="onSubmit" class="space-y-4">
         <div class="space-y-2">
           <Label>Type</Label>
           <div class="flex gap-4 items-center h-10">
@@ -187,31 +178,67 @@ const onSubmit = handleSubmit(async (values) => {
             min="0.01"
             step="any"
             class="font-mono"
+            autofocus
+            @keydown.enter.prevent="onSubmit"
           />
           <p v-if="errors.amount" class="text-xs text-destructive">{{ errors.amount }}</p>
         </div>
 
         <div class="space-y-2">
-          <Label for="status">Status</Label>
-          <select 
-            id="status" 
-            v-model="status"
-            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="Completed">Completed</option>
-            <option value="Pending">Pending</option>
-          </select>
-          <p v-if="errors.status" class="text-xs text-destructive">{{ errors.status }}</p>
+          <Label for="categoryId">Category</Label>
+          <Select v-model="categoryIdStr">
+            <SelectTrigger id="categoryId">
+              <SelectValue placeholder="Select Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="c in activeCategories" :key="c.id" :value="c.id.toString()">
+                {{ c.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p v-if="errors.categoryId" class="text-xs text-destructive">{{ errors.categoryId }}</p>
         </div>
-        
+
         <div class="space-y-2">
-          <Label for="transactionDate">Transaction Date</Label>
-          <Input 
-            id="transactionDate" 
-            type="datetime-local" 
-            v-model="transactionDate" 
-          />
-          <p v-if="errors.transactionDate" class="text-xs text-destructive">{{ errors.transactionDate }}</p>
+          <Label for="sourceId">Source</Label>
+          <Select v-model="sourceIdStr">
+            <SelectTrigger id="sourceId">
+              <SelectValue placeholder="Select Source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="s in activeSources" :key="s.id" :value="s.id.toString()">
+                {{ s.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <p v-if="errors.sourceId" class="text-xs text-destructive">{{ errors.sourceId }}</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <Label for="transactionDate">Transaction Date</Label>
+            <Input 
+              id="transactionDate" 
+              type="datetime-local" 
+              v-model="transactionDate" 
+              @keydown.enter.prevent="onSubmit"
+            />
+            <p v-if="errors.transactionDate" class="text-xs text-destructive">{{ errors.transactionDate }}</p>
+          </div>
+          
+          <div class="space-y-2">
+            <Label for="status">Status</Label>
+            <Select v-model="status">
+              <SelectTrigger id="status">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+              </SelectContent>
+            </Select>
+            <p v-if="errors.status" class="text-xs text-destructive">{{ errors.status }}</p>
+          </div>
         </div>
 
         <div v-if="status === 'Completed'" class="space-y-2">
@@ -220,13 +247,14 @@ const onSubmit = handleSubmit(async (values) => {
             id="completedDate" 
             type="datetime-local" 
             v-model="completedDate" 
+            @keydown.enter.prevent="onSubmit"
           />
           <p v-if="errors.completedDate" class="text-xs text-destructive">{{ errors.completedDate }}</p>
         </div>
 
         <div class="space-y-2">
           <Label for="note">Note</Label>
-          <Input id="note" v-model="note" placeholder="Optional notes..." />
+          <Input id="note" v-model="note" placeholder="Optional notes..." @keydown.enter.prevent="onSubmit" />
           <p v-if="errors.note" class="text-xs text-destructive">{{ errors.note }}</p>
         </div>
 

@@ -4,12 +4,25 @@ import { useCategoryStore } from '../stores/useCategoryStore'
 import CategoryDialog from '../components/CategoryDialog.vue'
 import Button from '@/components/ui/button/Button.vue'
 import Input from '@/components/ui/input/Input.vue'
+import { Skeleton } from '@/components/ui/skeleton'
 import * as Icons from '@lucide/vue'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const store = useCategoryStore()
 
 const dialogOpen = ref(false)
 const selectedCategoryId = ref<number | null>(null)
+const deleteDialogOpen = ref(false)
+const categoryToDelete = ref<number | null>(null)
 
 const openCreateDialog = () => {
   selectedCategoryId.value = null
@@ -21,9 +34,16 @@ const openEditDialog = (id: number) => {
   dialogOpen.value = true
 }
 
-const confirmDelete = async (id: number) => {
-  if (confirm('Are you sure you want to permanently delete this category?')) {
-    await store.deleteCategory(id)
+const confirmDelete = (id: number) => {
+  categoryToDelete.value = id
+  deleteDialogOpen.value = true
+}
+
+const executeDelete = async () => {
+  if (categoryToDelete.value) {
+    await store.deleteCategory(categoryToDelete.value)
+    deleteDialogOpen.value = false
+    categoryToDelete.value = null
   }
 }
 
@@ -60,20 +80,24 @@ onMounted(() => {
     </div>
 
     <!-- Content -->
-    <div class="border rounded-md">
-      <div v-if="store.isLoading" class="p-8 text-center text-muted-foreground">
-        Loading categories...
+    <div class="border rounded-xl bg-card overflow-hidden">
+      <div v-if="store.isLoading" class="p-4 space-y-3">
+        <div class="flex gap-4 border-b pb-3 px-2 text-xs text-muted-foreground font-medium uppercase"><span class="flex-1">Category</span><span class="w-20 text-right">Actions</span></div>
+        <Skeleton class="h-12 w-full rounded-md" v-for="i in 5" :key="i" />
       </div>
       
-      <div v-else-if="store.filteredCategories.length === 0" class="p-12 text-center">
-        <div class="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-          <Icons.Inbox class="w-6 h-6 text-muted-foreground" />
+      <div v-else-if="store.filteredCategories.length === 0" class="p-16 text-center border-2 border-dashed rounded-xl shadow-sm m-4">
+        <div class="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Icons.Inbox class="w-8 h-8 text-muted-foreground/50" />
         </div>
         <h3 class="text-lg font-medium">No categories found</h3>
-        <p class="text-sm text-muted-foreground mt-1 mb-4">
+        <p class="text-sm text-muted-foreground mt-1 mb-6">
           Get started by creating a new category.
         </p>
-        <Button variant="outline" @click="openCreateDialog">Create Category</Button>
+        <Button @click="openCreateDialog">
+          <Icons.Plus class="w-4 h-4 mr-2" />
+          Create Category
+        </Button>
       </div>
       
       <table v-else class="w-full text-sm text-left">
@@ -119,5 +143,20 @@ onMounted(() => {
       v-model:open="dialogOpen" 
       :category-id="selectedCategoryId"
     />
+
+    <AlertDialog :open="deleteDialogOpen" @update:open="deleteDialogOpen = $event">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete this category.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="deleteDialogOpen = false; categoryToDelete = null">Cancel</AlertDialogCancel>
+          <AlertDialogAction @click="executeDelete" class="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
