@@ -48,6 +48,10 @@ const txDialogOpen = ref(false)
 const categoryDetailOpen = ref(false)
 const sourceDetailOpen = ref(false)
 const selectedCategory = ref<CategoryReportItem | null>(null)
+
+const getIconComponent = (iconName: string | null | undefined) => {
+  return iconName && (Icons as Record<string, any>)[iconName] ? (Icons as Record<string, any>)[iconName] : Icons.Tag
+}
 const selectedSource = ref<SourceReportItem | null>(null)
 
 const openCreateTransaction = () => {
@@ -385,7 +389,7 @@ const sourceIdFilter = computed({
           >
             <div class="flex items-center gap-3 min-w-0">
               <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" :style="{ backgroundColor: `${cat.color}20`, color: cat.color }">
-                <span class="material-icons text-sm">{{ cat.icon }}</span>
+                <component :is="getIconComponent(cat.icon)" class="w-5 h-5" />
               </div>
               <div class="flex flex-col min-w-0">
                 <span class="font-medium truncate">{{ cat.name }}</span>

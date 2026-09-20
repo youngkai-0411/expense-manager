@@ -5,9 +5,14 @@ import { transactionApi } from '@/features/transactions/ipc'
 import type { CategoryReportItem, DashboardFilter } from '../types'
 import type { Transaction } from '@/features/transactions/types'
 import { useSettingsStore } from '@/features/settings/stores/useSettingsStore'
+import * as Icons from '@lucide/vue'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
 dayjs.extend(isBetween)
+
+const getIconComponent = (iconName: string | null | undefined) => {
+  return iconName && (Icons as Record<string, any>)[iconName] ? (Icons as Record<string, any>)[iconName] : Icons.Tag
+}
 
 const props = defineProps<{
   open: boolean
@@ -72,11 +77,10 @@ const topSources = computed(() => {
       <div v-if="category" class="space-y-6">
         <div class="flex items-center gap-4">
           <div 
-            class="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
+            class="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
             :style="{ backgroundColor: `${category.color}20`, color: category.color }"
           >
-            <!-- Basic fallback for icon if dynamic component is hard to render here -->
-            <span class="material-icons">{{ category.icon || 'category' }}</span>
+            <component :is="getIconComponent(category.icon)" class="w-6 h-6" />
           </div>
           <div>
             <DialogTitle class="text-2xl">{{ category.name }}</DialogTitle>
