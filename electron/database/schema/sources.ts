@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { integer, sqliteTable, text, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { accounts } from './accounts'
+import { categories } from './categories'
 
 export const sources = sqliteTable(
   'sources',
@@ -10,6 +11,8 @@ export const sources = sqliteTable(
       .notNull()
       .default(1)
       .references(() => accounts.id, { onDelete: 'cascade' }),
+    categoryId: integer('category_id')
+      .references(() => categories.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
@@ -18,7 +21,8 @@ export const sources = sqliteTable(
   },
   (table) => [
     index('sources_name_idx').on(table.name),
-    uniqueIndex('sources_account_name_unique').on(table.accountId, table.name),
+    index('sources_category_id_idx').on(table.categoryId),
+    uniqueIndex('sources_account_category_name_unique').on(table.accountId, table.categoryId, table.name),
   ],
 )
 

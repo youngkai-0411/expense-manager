@@ -3,6 +3,7 @@ import { getConnection } from './database'
 import { categories, sources, transactions, type NewCategory } from './database/schema'
 import { desc, eq, and, sql } from 'drizzle-orm'
 import { AccountService } from './services/AccountService'
+import { importCategorySources } from './database/helpers/importCategorySources'
 
 import { setupDashboardHandlers } from './ipc/dashboardHandlers'
 import { setupSettingsHandlers } from './ipc/settingsHandlers'
@@ -20,6 +21,18 @@ export function setupIpcHandlers() {
   const accountService = new AccountService()
 
   // === CATEGORIES ===
+
+  ipcMain.handle('category:importDefaultData', async () => {
+    try {
+      const accountId = await accountService.getCurrentAccountId()
+      if (!accountId) throw new Error('No active account')
+      const db = getConnection()
+      return importCategorySources(db, accountId)
+    } catch (error) {
+      console.error('Error importing default data:', error)
+      throw error
+    }
+  })
   
   ipcMain.handle('category:getAll', async () => {
     try {

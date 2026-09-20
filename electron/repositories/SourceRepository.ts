@@ -34,4 +34,9 @@ export class SourceRepository {
     const db = getConnection()
     return db.select().from(sources).where(eq(sources.accountId, accountId)).orderBy(desc(sources.createdAt)).all()
   }
+
+  async findAllByCategory(categoryId: number) {
+    const db = getConnection()
+    return db.select().from(sources).where(eq(sources.categoryId, categoryId)).orderBy(desc(sources.createdAt)).all()
+  }
 }

@@ -100,6 +100,22 @@ export const useCategoryStore = defineStore('category', () => {
     }
   }
 
+  const importDefaultData = async () => {
+    isLoading.value = true
+    try {
+      const res = await categoryApi.importDefaultData()
+      await loadCategories()
+      toast.success(`Imported ${res.categoriesCreated} categories and ${res.sourcesCreated} sources`)
+      return res
+    } catch (e: any) {
+      const msg = e.message || 'Failed to import default data'
+      toast.error(msg)
+      throw new Error(msg)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     categories,
     isLoading,
@@ -109,6 +125,7 @@ export const useCategoryStore = defineStore('category', () => {
     loadCategories,
     createCategory,
     updateCategory,
-    deleteCategory
+    deleteCategory,
+    importDefaultData
   }
 })

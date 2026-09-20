@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useSettingsStore } from '../stores/useSettingsStore'
+import { useCategoryStore } from '@/features/categories/stores/useCategoryStore'
 import * as Icons from '@lucide/vue'
 import Button from '@/components/ui/button/Button.vue'
 import Label from '@/components/ui/label/Label.vue'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 const store = useSettingsStore()
+const categoryStore = useCategoryStore()
 
 const localTheme = computed({
   get: () => store.preferences.theme,
@@ -30,6 +32,7 @@ const localFirstDayOfWeek = computed({
 
 const isResetDialogOpen = ref(false)
 const isSeedDialogOpen = ref(false)
+const isImportDialogOpen = ref(false)
 
 const handleReset = async () => {
   await store.resetData()
@@ -41,6 +44,11 @@ const handleSeed = async () => {
   await store.seedDemoData()
   isSeedDialogOpen.value = false
   window.location.reload()
+}
+
+const handleImport = async () => {
+  await categoryStore.importDefaultData()
+  isImportDialogOpen.value = false
 }
 </script>
 
@@ -133,6 +141,16 @@ const handleSeed = async () => {
         
         <div class="flex items-center justify-between border-b pb-4 border-border">
           <div>
+            <h3 class="font-medium">Import Default Categories & Sources</h3>
+            <p class="text-sm text-muted-foreground">Import the standard 10 categories and their child sources for the active account.</p>
+          </div>
+          <Button variant="outline" @click="isImportDialogOpen = true" :disabled="categoryStore.isLoading">
+            <Icons.FolderInput class="w-4 h-4 mr-2" /> Import Defaults
+          </Button>
+        </div>
+
+        <div class="flex items-center justify-between border-b pb-4 border-border">
+          <div>
             <h3 class="font-medium">Seed Demo Data</h3>
             <p class="text-sm text-muted-foreground">Populate the app with sample categories and 50 random transactions.</p>
           </div>
@@ -174,6 +192,22 @@ const handleSeed = async () => {
     </section>
 
     <!-- Dialogs -->
+    <Dialog :open="isImportDialogOpen" @update:open="isImportDialogOpen = $event">
+      <DialogContent>
+        <div class="flex flex-col space-y-1.5 text-center sm:text-left mb-4">
+          <DialogTitle>Import Default Categories & Sources?</DialogTitle>
+          <DialogDescription>
+            This will import the standard 10 categories (Food & Drink, Transportation, Personal Care, Clothing, Electronics, Entertainment, Hobbies, Utilities, Subscriptions, Household) and their respective child sources into your current account.
+            Existing categories and sources will be preserved without creating duplicates.
+          </DialogDescription>
+        </div>
+        <div class="flex justify-end space-x-2 pt-4">
+          <Button variant="outline" @click="isImportDialogOpen = false">Cancel</Button>
+          <Button @click="handleImport" :disabled="categoryStore.isLoading">Yes, Import Defaults</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
     <Dialog :open="isSeedDialogOpen" @update:open="isSeedDialogOpen = $event">
       <DialogContent>
         <div class="flex flex-col space-y-1.5 text-center sm:text-left mb-4">

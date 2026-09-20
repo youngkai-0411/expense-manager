@@ -1,5 +1,7 @@
 export interface Source {
   id: number
+  accountId?: number
+  categoryId?: number | null
   name: string
   description: string | null
   isActive: boolean
@@ -10,10 +12,12 @@ export interface Source {
 export interface CreateSourcePayload {
   name: string
   description?: string
+  categoryId?: number | null
 }
 
 export interface UpdateSourcePayload {
   id: number
   name?: string
   description?: string
+  categoryId?: number | null
 }

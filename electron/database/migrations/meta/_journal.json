@@ -43,6 +43,13 @@
       "when": 1786007788935,
       "tag": "0005_fix_source_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1786007788936,
+      "tag": "0006_add_category_to_sources",
+      "breakpoints": true
     }
   ]
 }
