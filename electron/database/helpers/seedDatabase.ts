@@ -8,12 +8,9 @@ import { importCategorySources } from './importCategorySources'
  * tự động bỏ qua các mục đã tồn tại và chỉ chèn những mục còn thiếu.
  */
 export function seedDatabase(db: AppDatabase, accountId = 1): void {
-  importCategorySources(db, accountId)
-  seedSettings(db)
-}
-
-function seedSettings(db: AppDatabase): void {
   const existing = db.select().from(settings).limit(1).all()
-  if (existing.length > 0) return
+  if (existing.length > 0) return // Database has already been seeded
+
+  importCategorySources(db, accountId)
   db.insert(settings).values(settingSeeds).run()
 }
